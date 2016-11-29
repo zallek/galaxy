@@ -16,13 +16,18 @@ class App extends React.Component {
 
   renderForm() {
     return (
-      <Form onSubmit={({ analysisUrl }) => this.setState({ analysisUrl })} />
+      <Form
+        onSubmit={({ analysisUrl }) => this.setState({ analysisUrl })}
+      />
     );
   }
 
   renderLoading() {
     return (
-      <Loading analysisUrl={this.state.analysisUrl} />
+      <Loading
+        analysisUrl={this.state.analysisUrl}
+        onLoaded={pages => console.log(Object.keys(pages))}
+      />
     );
   }
 

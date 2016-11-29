@@ -16,6 +16,37 @@ function extractUrl(url) {
   };
 }
 
+function processCSV(csv) {
+  const lines = csv.split('\n');
+  const pages = {};
+
+  lines.forEach((line, i) => {
+    if (i === 0) return;
+    const [source, destination, type] = line.split(',');
+
+    if (type !== 'Internal') return;
+
+    // register source
+    if (!pages[source]) {
+      pages[source] = [];
+    }
+
+    // register destination
+    if (!pages[destination]) {
+      pages[destination] = [];
+    }
+
+    // register outlink
+    const outlink = pages[source].find(o => o.url === destination);
+    if (!outlink) {
+      pages[source].push({ url: destination, count: 1 });
+    } else {
+      outlink.count++;
+    }
+  });
+
+  return pages;
+}
 
 class Loading extends React.Component {
   static propTypes = {
@@ -81,7 +112,13 @@ class Loading extends React.Component {
   }
 
   downloadLinks(url) {
-    console.log(url);
+    const oReq = new XMLHttpRequest();
+
+    oReq.open('GET', url, true);
+    oReq.onload = () => {
+      this.props.onLoaded(processCSV(oReq.response));
+    };
+    oReq.send();
   }
 
   renderLoader() {

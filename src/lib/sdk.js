@@ -51,7 +51,6 @@ sdk = applyMiddleware(
 )(sdk);
 
 sdk.setEnv = (env) => {
-  console.log('setEnv', env)
   sdk.configuration.authorization = `Token ${envs[env].token}`;
   sdk.configuration.BASEURI = `${envs[env].apiBase}/v1`;
 };
