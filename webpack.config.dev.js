@@ -1,6 +1,9 @@
 const path = require('path');
 const webpack = require('webpack'); // eslint-disable-line import/no-extraneous-dependencies
 
+const imageConfig = {
+  name: 'images/[name].[ext]',
+};
 
 module.exports = {
   // or devtool: 'eval' to debug issues with compiled output:
@@ -28,11 +31,18 @@ module.exports = {
       {
         test: /\.js$/,
         loaders: ['babel'],
-        include: path.join(__dirname, 'src'),
+        include: [
+          path.join(__dirname, 'src'),
+          path.join(__dirname, 'node_modules', 'vis'),
+        ],
       },
       {
         test: /\.css$/,
         loaders: ['style', 'css'],
+      },
+      {
+        test: /\.png$/,
+        loaders: [`file?${JSON.stringify(imageConfig)}`],
       },
     ],
   },

@@ -1,5 +1,5 @@
 import React, { PropTypes } from 'react';
-import BotifySDK from './lib/sdk';
+import BotifySDK from '../lib/sdk';
 
 import './Loading.css';
 
@@ -18,7 +18,8 @@ function extractUrl(url) {
 
 function processCSV(csv) {
   const lines = csv.split('\n');
-  const pages = {};
+  const pagesIndex = {}; // url -> id
+  const pages = [];      // id -> { pageIdx, outlinks }
 
   lines.forEach((line, i) => {
     if (i === 0) return;
@@ -27,25 +28,36 @@ function processCSV(csv) {
     if (type !== 'Internal') return;
 
     // register source
-    if (!pages[source]) {
-      pages[source] = [];
+    if (!pagesIndex[source]) {
+      const newLength = pages.push({
+        url: source,
+        outlinks: [],
+      });
+      pagesIndex[source] = newLength - 1;
     }
 
     // register destination
-    if (!pages[destination]) {
-      pages[destination] = [];
+    if (!pagesIndex[destination]) {
+      const newLength = pages.push({
+        url: destination,
+        outlinks: [],
+      });
+      pagesIndex[destination] = newLength - 1;
     }
 
     // register outlink
-    const outlink = pages[source].find(o => o.url === destination);
+    const outlink = pages[pagesIndex[source]].outlinks.find(o => o.url === destination);
     if (!outlink) {
-      pages[source].push({ url: destination, count: 1 });
+      pages[pagesIndex[source]].outlinks.push({ pageIdx: pagesIndex[destination], count: 1 });
     } else {
       outlink.count++;
     }
   });
 
-  return pages;
+  return {
+    pages,
+    pagesIndex,
+  };
 }
 
 class Loading extends React.Component {
