@@ -1,6 +1,8 @@
 import React, { PropTypes } from 'react';
 import BotifySDK from '../lib/sdk';
 
+import Loader from './Loader';
+
 import './Loading.css';
 
 
@@ -28,13 +30,14 @@ function processCSV(csv) {
     if (type !== 'Internal') return;
 
     // register source
-    if (!pagesIndex[source]) {
+    if (!pagesIndex[source] && pagesIndex[source] !== 0) {
       const newLength = pages.push({
         url: source,
         outlinks: [],
       });
       pagesIndex[source] = newLength - 1;
     }
+    const sourceIdx = pagesIndex[source];
 
     // register destination
     if (!pagesIndex[destination]) {
@@ -44,11 +47,12 @@ function processCSV(csv) {
       });
       pagesIndex[destination] = newLength - 1;
     }
+    const destinationIdx = pagesIndex[destination];
 
     // register outlink
-    const outlink = pages[pagesIndex[source]].outlinks.find(o => o.url === destination);
+    const outlink = pages[sourceIdx].outlinks.find(o => o.pageIdx === destinationIdx);
     if (!outlink) {
-      pages[pagesIndex[source]].outlinks.push({ pageIdx: pagesIndex[destination], count: 1 });
+      pages[sourceIdx].outlinks.push({ pageIdx: destinationIdx, count: 1 });
     } else {
       outlink.count++;
     }
@@ -133,38 +137,15 @@ class Loading extends React.Component {
     oReq.send();
   }
 
-  renderLoader() {
-    return (
-      <div className="sk-cube-grid">
-        <div className="sk-cube sk-cube1" />
-        <div className="sk-cube sk-cube2" />
-        <div className="sk-cube sk-cube3" />
-        <div className="sk-cube sk-cube4" />
-        <div className="sk-cube sk-cube5" />
-        <div className="sk-cube sk-cube6" />
-        <div className="sk-cube sk-cube7" />
-        <div className="sk-cube sk-cube8" />
-        <div className="sk-cube sk-cube9" />
-      </div>
-    );
-  }
-
-  renderText() {
-    return (
-      <h2 className="Loading-text">
-        <div>Fetching your data</div>
-        {this.state.error &&
-          <strong className="text-danger">{this.state.error.message}</strong>
-        }
-      </h2>
-    );
-  }
-
   render() {
     return (
       <div className="Loading">
-        {this.renderLoader()}
-        {this.renderText()}
+        <Loader>
+          <div>Fetching your data</div>
+          {this.state.error &&
+            <strong className="text-danger">{this.state.error.message}</strong>
+          }
+        </Loader>
       </div>
     );
   }

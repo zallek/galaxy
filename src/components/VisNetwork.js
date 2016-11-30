@@ -59,9 +59,11 @@ export default class VisNetwork extends React.Component {
 
   componentWillReceiveProps(nextProps) {
     if (nextProps.nodes !== this.props.nodes) {
+      console.log('update nodes');
       this.timeline.setNodes(nextProps.nodes);
     }
     if (nextProps.edges !== this.props.edges) {
+      console.log('update edges');
       this.timeline.setEdges(nextProps.edges);
     }
   }
@@ -71,14 +73,16 @@ export default class VisNetwork extends React.Component {
   }
 
   render() {
-    const { style } = this.props;
+    const { style, children } = this.props;
 
     return (
       <div
         className={'VisNetwork'}
         ref={(ref) => { this.networkNode = ref; }}
         style={style}
-      />
+      >
+        {children}
+      </div>
     );
   }
 
