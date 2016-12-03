@@ -1,68 +1,15 @@
 import React, { PropTypes } from 'react';
-import BotifySDK from '../lib/sdk';
 
+import Data, { INVALID_REASONS } from '../lib/data';
 import Loader from './Loader';
-
 import './Loading.css';
 
 
-function extractUrl(url) {
-  const splits = url.split('/');
-  const tempEnv = splits[2].split('.')[1];
-
-  return {
-    env: tempEnv === 'botify' ? 'production' : tempEnv,
-    username: splits[3],
-    projectSlug: splits[4],
-    analysisSlug: splits[5],
-  };
-}
-
-function processCSV(csv) {
-  const lines = csv.split('\n');
-  const pagesIndex = {}; // url -> id
-  const pages = [];      // id -> { pageIdx, outlinks }
-
-  lines.forEach((line, i) => {
-    if (i === 0) return;
-    const [source, destination, type] = line.split(',');
-
-    if (type !== 'Internal') return;
-
-    // register source
-    if (!pagesIndex[source] && pagesIndex[source] !== 0) {
-      const newLength = pages.push({
-        url: source,
-        outlinks: [],
-      });
-      pagesIndex[source] = newLength - 1;
-    }
-    const sourceIdx = pagesIndex[source];
-
-    // register destination
-    if (!pagesIndex[destination]) {
-      const newLength = pages.push({
-        url: destination,
-        outlinks: [],
-      });
-      pagesIndex[destination] = newLength - 1;
-    }
-    const destinationIdx = pagesIndex[destination];
-
-    // register outlink
-    const outlink = pages[sourceIdx].outlinks.find(o => o.pageIdx === destinationIdx);
-    if (!outlink) {
-      pages[sourceIdx].outlinks.push({ pageIdx: destinationIdx, count: 1 });
-    } else {
-      outlink.count++;
-    }
-  });
-
-  return {
-    pages,
-    pagesIndex,
-  };
-}
+const LOADING_STEPS = [
+  'Analysis Info',
+  'URLs Links',
+  'URLs Segments',
+];
 
 class Loading extends React.Component {
   static propTypes = {
@@ -72,78 +19,64 @@ class Loading extends React.Component {
 
   constructor(props) {
     super(props);
+    this.data = new Data(props.analysisUrl);
 
     this.state = {
+      loadingStep: -1,
       error: null,
     };
   }
 
   componentDidMount() {
-    this.fetchLinks();
+    this.fetchData();
   }
 
-  fetchLinks() {
-    const { analysisUrl } = this.props;
-
-    this.analysisMeta = extractUrl(analysisUrl);
-    BotifySDK.setEnv(this.analysisMeta.env);
-
-    this.checkIfExportAlreadyExist((exportUrl) => {
-      if (!exportUrl) {
-        this.exportLinks(newExportUrl => this.downloadLinks(newExportUrl));
-      } else {
-        this.downloadLinks(exportUrl);
-      }
+  onStep(stepIdx) {
+    this.setState({
+      loadingStep: stepIdx,
     });
   }
 
-  checkIfExportAlreadyExist(cb) {
-    BotifySDK.AnalysisController.getAdvancedExports({
-      ...this.analysisMeta,
-      size: 30,
-    }, (error, response) => {
-      if (error) {
+  fetchData() {
+    this.data.fetchData(this.onStep.bind(this))
+    .catch((error) => {
+      if (error.message === 'Analysis is invalid') {
+        this.setState({ analysisInvalid: error.reason });
+      } else {
+        console.error(error);
         this.setState({ error });
-      } else {
-        const job = response.results.find(j => j.advanced_export_type === 'ALL_LINKS');
-        cb(job ? job.results.download_url : null);
       }
+    })
+    .then(() => {
+      this.props.onLoaded(this.data);
     });
   }
 
-  exportLinks(cb) {
-    BotifySDK.AnalysisController.createAdvancedExport({
-      ...this.analysisMeta,
-      advancedExportQuery: {
-        advanced_export_type: 'ALL_LINKS',
-        query: {},
-      },
-    }, (error, job) => {
-      if (error) {
-        this.setState({ error });
-      } else {
-        cb(job.results.download_url);
-      }
-    });
-  }
+  renderAnalysisInvalid() {
+    const { analysisInvalid } = this.state;
+    if (!analysisInvalid) return null;
 
-  downloadLinks(url) {
-    const oReq = new XMLHttpRequest();
-
-    oReq.open('GET', url, true);
-    oReq.onload = () => {
-      this.props.onLoaded(processCSV(oReq.response));
-    };
-    oReq.send();
+    const text = analysisInvalid === INVALID_REASONS.NOT_EXISTS ? 'Sorry your analysis doesn\'t exist or is not finished yet'
+               : analysisInvalid === INVALID_REASONS.NO_SEGMENTS ? 'Sorry your analysis needs to use segmentation'
+               : 'Sorry your analysis is invalid';
+    return <strong className="text-danger">{text}</strong>;
   }
 
   render() {
+    const { loadingStep, error } = this.state;
     return (
       <div className="Loading">
         <Loader>
           <div>Fetching your data</div>
-          {this.state.error &&
-            <strong className="text-danger">{this.state.error.message}</strong>
+          {LOADING_STEPS.map((name, i) =>
+            <div key={i} className="Loading-state clearfix">
+              <span className="Loading-state-name">{name} ...</span>
+              <span className="Loading-state-status">{loadingStep >= i && 'done'}</span>
+            </div>,
+          )}
+          {this.renderAnalysisInvalid()}
+          {error &&
+            <div className="text-warning">{error.message}</div>
           }
         </Loader>
       </div>

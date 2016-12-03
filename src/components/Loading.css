@@ -1,8 +1,22 @@
 .Loading {
-  margin: 20% auto 0;
+  margin: 150px auto 0;
   text-align: center;
 }
 
 .Loading .Loader .sk-cube-grid .sk-cube {
   background-color: #85b3d5;
+}
+
+.Loading .Loading-state {
+  width: 400px;
+  margin: 20px auto;
+}
+
+.Loading .Loading-state .Loading-state-name {
+  float: left;
+}
+
+.Loading .Loading-state .Loading-state-status {
+  color: #85b3d5;
+  float: right;
 }

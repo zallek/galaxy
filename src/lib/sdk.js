@@ -8,7 +8,6 @@ import {
 
 /** Configure SDK **/
 
-
 const envs = {
   production: {
     apiBase: 'https://api.botify.com',
@@ -43,6 +42,9 @@ const jobOperations = [
   },
 ];
 
+/** End configure */
+
+
 let sdk = baseSdk; // eslint-disable-line import/no-mutable-exports
 
 sdk = applyMiddleware(
@@ -54,5 +56,24 @@ sdk.setEnv = (env) => {
   sdk.configuration.authorization = `Token ${envs[env].token}`;
   sdk.configuration.BASEURI = `${envs[env].apiBase}/v1`;
 };
+
+/**
+ *  Promisification Fn
+ */
+function promisifyController(controller) {
+  Object.keys(controller).forEach((operation) => {
+    controller[operation + 'Async'] = (params, opts) => new Promise((resolve, reject) => { // eslint-disable-line
+      controller[operation](params, (error, response) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(response);
+        }
+      }, opts);
+    });
+  });
+}
+
+promisifyController(sdk.AnalysisController);
 
 export default sdk;

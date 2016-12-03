@@ -2,8 +2,8 @@ import React from 'react';
 
 import './Loader.css';
 
+
 const Loader = ({ children }) => {
-  console.log('render');
   return (
     <div className="Loader">
       <div className="sk-cube-grid">
