@@ -7,16 +7,16 @@
   background-color: #85b3d5;
 }
 
-.Loading .Loading-state {
+.Loading-state {
   width: 500px;
   margin: 20px auto;
 }
 
-.Loading .Loading-state .Loading-state-name {
+.Loading-state-name {
   float: left;
 }
 
-.Loading .Loading-state .Loading-state-status {
+.Loading-state-status {
   color: #85b3d5;
   float: right;
 }

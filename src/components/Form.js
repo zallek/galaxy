@@ -20,14 +20,22 @@ const Form = ({ analyses, onSubmit }) => {
           <button type="submit" className="btn btn-primary">Start</button>
         </div>
       </form>
-      <div className="row">
+      <div className="Form-analyses">
         {analyses.map(analysis =>
-          <div className="Analysis .col-md-3" onClick={() => onSubmit({ id: analysis.id })}>
-            <span>{analysis.owner}</span>
-            <span>{analysis.projectSlug}</span>
-            <span>{analysis.analysisSlug}</span>
-            <span>{analysis.knownUrls} URLs</span>
-            <span>{analysis.links} Links</span>
+          <div
+            key={analysis.id}
+            className="Form-analysis"
+            onClick={() => onSubmit({ id: analysis.id, refresh: !analysis.ready })}
+          >
+            <div className="Form-analysis-name">
+              <div>{analysis.owner}</div>
+              <div>{analysis.projectSlug}</div>
+              <div>{analysis.analysisSlug}</div>
+            </div>
+            <div className="Form-analysis-info">
+              <div>{analysis.knownUrls} URLs</div>
+              <div>{analysis.links} Links</div>
+            </div>
           </div>,
         )}
       </div>

@@ -1,27 +1,27 @@
 import Dexie from 'dexie';
-import bMd5 from 'blueimp-md5';
+import md5 from 'blueimp-md5';
+import csvParse from 'csv-parse/lib/sync';
 
 import BotifySDK from './sdk';
 
+
+Promise = Dexie.Promise;
 
 const EXPORTS = {
   ALL_LINKS: 'ALL_LINKS',
   ALL_URL_DETAILS: 'ALL_URL_DETAILS',
 };
 
-export const FETCHING_STEPS = {
-  ANALYSIS_INFO: 0,
-  LINKS: 1,
-  SEGMENTS: 2,
-  VISUALISATION: 3,
+export const PREPARE_STEPS = {
+  LINKS: 0,
+  SEGMENTS: 1,
+  VISUALISATION: 2,
 };
 
 export const INVALID_REASONS = {
   NOT_EXISTS: 0,
   NO_SEGMENTS: 1,
 };
-
-const hash = string => Number.parseInt(bMd5(string), 16);
 
 function extractAnalaysisMeta(url) {
   const splits = url.split('/');
@@ -33,6 +33,12 @@ function extractAnalaysisMeta(url) {
     projectSlug: splits[4],
     analysisSlug: splits[5],
   };
+}
+
+function getRandomInt(min, max) {
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  return Math.floor(Math.random() * (max - min)) + min;
 }
 
 
@@ -52,11 +58,11 @@ export default class Analysis {
 
     this.db = new Dexie(`Analysis-${id}`);
     this.db.version(1).stores({
-      urls: 'id', // url,segment1,segment2,segment3
-      links: '++id, source, follow', // destination
+      urls: 'id', // url,segment1, segment2, segment3
+      links: '++id, follow', // destination
       groups: '++id, [groupBy1+groupBy2]',
-      groupsNodes: '++id, group, [group+key1+key2]', // count
-      groupsLinks: '++id, group', // from,to,count',
+      groupsNodes: 'id, group', // key1, key2, count
+      groupsLinks: 'id, group', // from, to, count',
     });
   }
 
@@ -67,72 +73,40 @@ export default class Analysis {
   prepare(notify) {
     return Promise.resolve()
     .then(() => this._initSDK())
+    .then(() => this._clearDB())
     // Links
     .then(() => this._prepareExport(EXPORTS.ALL_LINKS))
     .then(downloadUrl => this._downloadExport(downloadUrl))
-    .then(links => this._storeLinksFromExtract(links))
-    .then(() => notify(FETCHING_STEPS.LINKS))
+    .then(links => this._storeLinksFromExtract(csvParse(links, { columns: true })))
+    .then(() => notify(PREPARE_STEPS.LINKS))
     // Segments
     .then(() => this._prepareExport(EXPORTS.ALL_URL_DETAILS))
     .then(downloadUrl => this._downloadExport(downloadUrl))
-    .then(allUrls => this._storeSegmentsFromExtract(allUrls))
-    .then(() => notify(FETCHING_STEPS.SEGMENTS))
+    .then(allUrls => this._storeSegmentsFromExtract(csvParse(allUrls, { columns: true })))
+    .then(() => notify(PREPARE_STEPS.SEGMENTS))
     // Prepare first visualisation
-    .then(() => this._prepareFirstGroup)
-    .then(() => notify(FETCHING_STEPS.VISUALISATION))
+    .then(() => this._prepareFirstGroup())
+    .then(() => notify(PREPARE_STEPS.VISUALISATION));
     // Set ready
-    .then(() => this._setReady);
+    // .then(() => this._setReady());
   }
 
-  computeGroup(groupBy1, groupBy2, followType) {
-    return Promise.resolve()
-    .then(() => this.db.groups.add({ groupBy1, groupBy2 }))
-    .then((group) => {
-      return this.db.urls.each((url) => {
-        const key = { group: group.id, key1: url[groupBy1], key2: groupBy2 ? url[groupBy2] : null };
-        let id = null;
+  computeGroup(groupBy1, groupBy2 = '', followType) {
+    const followValue = followType === 'Follow' ? 1
+                       : followType === 'NoFollow' ? 0
+                       : null;
+    let group = null;
 
-        return Promise.resolve()
-        // Add url to groupsNodes
-        .then(() => this.db.groupsNodes.where(key).first())
-        .then((node) => {
-          if (node) {
-            id = node.id;
-            return this.db.groupsNodes.update({ count: group.count + 1 }, id);
-          }
-          return this.db.groupsNodes.add({ ...key, count: 1 });
-        })
-        .then((newId) => {
-          if (!id) id = newId;
-          const linksKey = { source: url.id };
-          if (followType) {
-            linksKey.follow = followType === 'Follow';
-          }
-
-          return this.db.links.where(linksKey)
-          .then((links) => {
-            const toCounts = {};
-            links.forEach((link) => {
-              if (!toCounts[link]) toCounts[link] = 0;
-              toCounts[link]++;
-            });
-
-            const groupLinks = Object.key(toCounts).map(to => ({
-              from: id,
-              to,
-              count: toCounts[to],
-            }));
-            return this.db.groupsLinks.bulkAdd(groupLinks);
-          });
-        });
-      });
-    });
+    return this.db.groups.add({ groupBy1, groupBy2 })
+    .then((g) => { group = g; })
+    .then(() => this._computeGroupNodes(group, groupBy1, groupBy2))
+    .then(urlsNodeId => this._computeGroupLinks(group, groupBy1, groupBy2, followValue, urlsNodeId));
   }
 
   getGroup(id) {
     return Promise.all([
-      this.db.groupsNodes.where({ group: id }).toArray(),
-      this.db.groupsLinks.where({ group: id }).toArray(),
+      this.db.groupsNodes.where('group').equals(id).toArray(),
+      this.db.groupsLinks.where('group').equals(id).toArray(),
     ])
     .then(([nodes, links]) => ({ nodes, links }));
   }
@@ -145,6 +119,16 @@ export default class Analysis {
       this.info = analysis;
       BotifySDK.setEnv(analysis.env);
     });
+  }
+
+  _clearDB() {
+    return Promise.all([
+      this.db.urls.clear(),
+      this.db.links.clear(),
+      this.db.groups.clear(),
+      this.db.groupsNodes.clear(),
+      this.db.groupsLinks.clear(),
+    ]);
   }
 
   _prepareExport(type) {
@@ -198,63 +182,58 @@ export default class Analysis {
     });
   }
 
-  _addUrlIfNotExist(url) {
-    const id = hash(url);
-    return this.db.urls.get(id)
-    .then((item) => {
-      if (!item) {
-        return this.db.urls.add({ id, url });
-      }
-      return null;
-    })
-    .then(() => id);
+  _addUrl(id, url) {
+    return this.db.urls.add({
+      id,
+      url,
+      segment1: '',
+      segment2: '',
+    });
   }
 
-  _storeLinksFromExtract(csv) {
-    this.info.links = csv.length - 1;
-    return Promise.all([
-      csv.split('\n').map((line, i) => {
-        if (i === 0) return null;
+  _storeLinksFromExtract(links) {
+    let nbLinks = 0;
+    const urlsId = new Set();
 
-        const [source, destination, type, follow] = line.split(',');
-        if (type !== 'Internal') return null;
+    return this.db.transaction('rw', this.db.urls, this.db.links, () => {
+      links.forEach((link) => {
+        if (link['Internal / External'] !== 'Internal') return;
+        nbLinks++;
 
-        return Promise.resolve()
-        .then(() => Promise.all([
-          this._addUrlIfNotExist(source),
-          this._addUrlIfNotExist(destination),
-        ]))
-        .then(([sourceId, destinationId]) => this.db.links.add({
+        const sourceId = md5(link['Url Source']);
+        const destinationId = md5(link['Url Destination']);
+
+        // register urls
+        if (!urlsId.has(sourceId)) {
+          urlsId.add(sourceId);
+          this._addUrl(sourceId, link['Url Source']);
+        }
+        if (!urlsId.has(destinationId)) {
+          urlsId.add(destinationId);
+          this._addUrl(destinationId, link['Url Destination']);
+        }
+
+        // register link
+        this.db.links.add({
           source: sourceId,
           destination: destinationId,
-          follow: follow === 'Follow',
-        }));
-      }),
-    ]);
+          follow: link['Follow / No-Follow'] === 'Follow' ? 1 : 0,
+        });
+      });
+    })
+    .then(() => { this.info.links = nbLinks; });
   }
 
-  _storeSegmentsFromExtract(csv) {
-    const COLS_IDX = {
-      url: 24,
-      segment1: 20,
-      segment2: 21,
-      segment3: 22,
-    };
-
-    return Promise.all([
-      csv.split('\n').forEach((line, i) => {
-        if (i === 0) return null;
-
-        const splits = line.split(',');
-        return Promise.resolve()
-        .then(() => this._addUrlIfNotExist(splits[COLS_IDX.url]))
-        .then(id => this.db.urls.update({
-          segment1: splits[COLS_IDX.segment1],
-          segment2: splits[COLS_IDX.segment2],
-          segment3: splits[COLS_IDX.segment3],
-        }, id));
-      }),
-    ]);
+  _storeSegmentsFromExtract(pages) {
+    return this.db.transaction('rw', this.db.urls, () => {
+      pages.forEach((page) => {
+        const id = md5(page.url);
+        this.db.urls.update(id, {
+          segment1: page.segment_1 || getRandomInt(0, 20).toString(),
+          segment2: page.segment_2,
+        });
+      });
+    });
   }
 
   _setReady() {
@@ -265,7 +244,67 @@ export default class Analysis {
   }
 
   _prepareFirstGroup() {
-    return this._computeGroup('segment1');
+    return this.computeGroup('segment1');
+  }
+
+  _computeGroupNodeKey(url, groupBy1, groupBy2) {
+    const key1 = url[groupBy1] || '';
+    const key2 = (groupBy2 && url[groupBy2]) || '';
+    return [md5(`${key1}:${key2}`), key1, key2];
+  }
+
+  _computeGroupNodes(group, groupBy1, groupBy2) {
+    const urlsNodeId = new Map(); // url id to node Id
+    const nodesId = new Map();    // node key to node id
+    const nodesValue = [];
+
+    return this.db.urls.each((url) => {
+      // Register url in a groupNode
+      const [nodeKey, key1, key2] = this._computeGroupNodeKey(url, groupBy1, groupBy2);
+      let nodeId = nodesId.get(nodeKey);
+      if (!nodeId) {
+        nodeId = nodesId.size + 1; // make ids start at 1
+        nodesId.set(nodeKey, nodeId);
+        nodesValue.push({ id: nodeId, group, key1, key2, count: 1 });
+      } else {
+        nodesValue[nodeId - 1].count++;
+      }
+      urlsNodeId.set(url.id, nodeId);
+    })
+    .then(() => this.db.groupsNodes.bulkAdd(nodesValue))
+    .then(() => urlsNodeId);
+  }
+
+  _computeGroupLinks(group, groupBy1, groupBy2, followValue, urlsNodeId) {
+    const linksId = new Map();
+    const linksValue = [];
+
+    let pt = this.db.links;
+    if (followValue !== null) {
+      pt = pt.where('follow').equals(followValue);
+    }
+
+    return pt.each((link) => {
+      const fromId = urlsNodeId.get(link.source);
+      const toId = urlsNodeId.get(link.destination);
+      const linkKey = md5(`${fromId}:${toId}`);
+
+      let linkId = linksId.get(linkKey);
+      if (!linkId) {
+        linkId = linksId.size + 1; // make ids start at 1
+        linksId.set(linkKey, linkId);
+        linksValue.push({
+          id: linkId,
+          group,
+          from: fromId,
+          to: toId,
+          count: 1,
+        });
+      } else {
+        linksValue[linkId - 1].count++;
+      }
+    })
+    .then(() => this.db.groupsLinks.bulkAdd(linksValue));
   }
 
 }
@@ -288,6 +327,7 @@ export function createAnalysis(url) {
     throw error;
   })
   .then((analysis) => {
+    analysis.features.segments = { names: ['test'] };
     if (!analysis.features.segments || !analysis.features.segments.names.length) {
       const error = new Error('InvalidAnalysis');
       error.reason = INVALID_REASONS.NO_SEGMENTS;
@@ -302,7 +342,7 @@ export function createAnalysis(url) {
       projectSlug: analysisMeta.projectSlug,
       analysisSlug: analysisMeta.analysisSlug,
       crawledUrls: analysis.urls_done,
-      knownUrls: analysis.urls_in_queue,
+      knownUrls: analysis.urls_done + analysis.urls_in_queue,
       links: null,
       segmentsName: analysis.features.segments.names,
       ready: false,

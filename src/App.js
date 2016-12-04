@@ -26,23 +26,32 @@ class App extends React.Component {
     getAnalyses().then(analyses => this.setState({ analyses }));
   }
 
-  onChooseAnalysis({ id, url }) {
+  onChooseAnalysis({ id, refresh, url }) {
     if (id) {
-      // Use existing analysis
+      const analysis = new Analysis(id);
+      if (refresh) {
+        this.prepareAnalaysis(analysis);
+      } else {
+        this.setState({
+          analysis,
+          ready: true,
+        });
+      }
+    } else {
+      // create new analysis
       this.setState({
-        analysis: new Analysis(id),
-        ready: true,
+        loadingStep: 1,
       });
-      return;
+
+      createAnalysis(url)
+      .then(analysis => this.prepareAnalaysis(analysis))
+      .catch(loadingError => this.setState({ loadingError }));
     }
+  }
 
-    // create new analysis
-    this.setState({
-      loadingStep: 1,
-    });
-
-    createAnalysis(url)
-    .then((analysis) => {
+  prepareAnalaysis(analysis) {
+    return Promise.resolve()
+    .then(() => {
       this.setState({
         analysis,
         loadingStep: 2,
@@ -78,15 +87,15 @@ class App extends React.Component {
   renderGalaxy() {
     return (
       <Galaxy
-        data={this.state.data}
+        analysis={this.state.analysis}
       />
     );
   }
 
   render() {
-    const { ready, loadingStep } = this.state;
-    if (ready) return this.renderGalaxy();
-    else if (loadingStep) return this.renderLoading();
+    const { ready, loadingStep, loadingError } = this.state;
+    if (ready && !loadingError) return this.renderGalaxy();
+    else if (loadingStep || loadingError) return this.renderLoading();
     return this.renderForm();
   }
 }

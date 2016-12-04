@@ -7,3 +7,45 @@
 .Form input {
   text-align: center;
 }
+
+.Form-analyses {
+  width: 660px;
+  margin: 30px auto 0;
+}
+
+.Form-analysis {
+  height: 200px;
+  width: 200px;
+  background-color: #35393c;
+  border: 2px solid #fff;
+  position: relative;
+  display: inline-block;
+  margin: 10px;
+}
+
+.Form-analysis:hover {
+  cursor: pointer;
+}
+
+.Form-analysis:hover::after {
+  content: ' ';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  opacity: 0.1;
+  background: #fff;
+}
+
+.Form-analysis-name {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+}
+
+.Form-analysis-info {
+  position: absolute;
+  bottom: 5px;
+  left: 5px;
+}
