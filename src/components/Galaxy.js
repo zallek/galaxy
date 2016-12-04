@@ -1,6 +1,7 @@
 import React, { PropTypes } from 'react';
 
 import VisNetwork from './VisNetwork';
+import './Galaxy.css';
 
 
 export default class Galaxy extends React.Component {
@@ -8,13 +9,37 @@ export default class Galaxy extends React.Component {
     analysis: PropTypes.any,
   };
 
+  constructor(props) {
+    super(props);
+
+    this.state = {
+      nodes: null,
+      links: null,
+      groups: null,
+    };
+  }
+
   componentDidMount() {
-    this.props.analysis.getGroup(0)
-    .then(data => this.setState(data));
+    this.props.analysis.getGroups()
+    .then((groups) => {
+      this.setState({ groups });
+      return groups[0].id;
+    })
+    .then(groupId => this.props.analysis.getGroup(groupId))
+    .then(({ nodes, links }) => this.setState({ nodes, links }));
   }
 
   renderNetwork() {
-    const { nodes, edges } = this.state;
+    const nodes = this.state.nodes.map(node => ({
+      id: node.id,
+      value: node.count,
+      group: node.id,
+    }));
+    const edges = this.state.links.map(link => ({
+      from: link.from,
+      to: link.to,
+      value: link.count,
+    }));
     return (
       <VisNetwork
         nodes={nodes}

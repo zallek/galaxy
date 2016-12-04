@@ -86,9 +86,9 @@ export default class Analysis {
     .then(() => notify(PREPARE_STEPS.SEGMENTS))
     // Prepare first visualisation
     .then(() => this._prepareFirstGroup())
-    .then(() => notify(PREPARE_STEPS.VISUALISATION));
+    .then(() => notify(PREPARE_STEPS.VISUALISATION))
     // Set ready
-    // .then(() => this._setReady());
+    .then(() => this._setReady());
   }
 
   computeGroup(groupBy1, groupBy2 = '', followType) {
@@ -109,6 +109,10 @@ export default class Analysis {
       this.db.groupsLinks.where('group').equals(id).toArray(),
     ])
     .then(([nodes, links]) => ({ nodes, links }));
+  }
+
+  getGroups() {
+    return this.db.groups.toArray();
   }
 
   // PRIVATE
