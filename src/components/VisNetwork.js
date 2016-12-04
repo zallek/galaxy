@@ -73,16 +73,14 @@ export default class VisNetwork extends React.Component {
   }
 
   render() {
-    const { style, children } = this.props;
+    const { style } = this.props;
 
     return (
       <div
         className={'VisNetwork'}
         ref={(ref) => { this.networkNode = ref; }}
         style={style}
-      >
-        {children}
-      </div>
+      />
     );
   }
 

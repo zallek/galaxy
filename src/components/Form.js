@@ -3,13 +3,13 @@ import React, { PropTypes } from 'react';
 import './Form.css';
 
 
-const Form = ({ onSubmit }) => {
+const Form = ({ analyses, onSubmit }) => {
   return (
     <div className="Form">
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          onSubmit(e.target.analysisUrl.value);
+          onSubmit({ url: e.target.analysisUrl.value });
         }}
       >
         <div className="form-group">
@@ -20,10 +20,22 @@ const Form = ({ onSubmit }) => {
           <button type="submit" className="btn btn-primary">Start</button>
         </div>
       </form>
+      <div className="row">
+        {analyses.map(analysis =>
+          <div className="Analysis .col-md-3" onClick={() => onSubmit({ id: analysis.id })}>
+            <span>{analysis.owner}</span>
+            <span>{analysis.projectSlug}</span>
+            <span>{analysis.analysisSlug}</span>
+            <span>{analysis.knownUrls} URLs</span>
+            <span>{analysis.links} Links</span>
+          </div>,
+        )}
+      </div>
     </div>
   );
 };
 Form.propTypes = {
+  analyses: PropTypes.array.isRequired,
   onSubmit: PropTypes.func.isRequired,
 };
 

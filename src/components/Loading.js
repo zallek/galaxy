@@ -1,87 +1,48 @@
 import React, { PropTypes } from 'react';
 
-import Data, { INVALID_REASONS } from '../lib/data';
+import { INVALID_REASONS } from '../lib/Analysis';
 import Loader from './Loader';
 import './Loading.css';
 
 
 const LOADING_STEPS = [
-  'Analysis Info',
-  'URLs Links',
-  'URLs Segments',
+  'Fetching Analysis Info',
+  'Fetching URLs Links',
+  'Fetching URLs Segments',
+  'Preparing Visualisation',
 ];
 
-class Loading extends React.Component {
-  static propTypes = {
-    analysisUrl: PropTypes.string.isRequired,
-    onLoaded: PropTypes.func.isRequired,
-  };
-
-  constructor(props) {
-    super(props);
-    this.data = new Data(props.analysisUrl);
-
-    this.state = {
-      loadingStep: -1,
-      error: null,
-    };
+const Loading = ({ step, error }) => {
+  let errorMessage = null;
+  if (error) {
+    if (!error.reason) {
+      errorMessage = error.message;
+    } else if (error.reason === INVALID_REASONS.NOT_EXISTS) {
+      errorMessage = 'Sorry your analysis doesn\'t exist or is not finished yet';
+    } else if (error.reason === INVALID_REASONS.NO_SEGMENTS) {
+      errorMessage = 'Sorry your analysis needs to use segmentation';
+    } else {
+      errorMessage = 'Sorry your analysis is invalid';
+    }
   }
 
-  componentDidMount() {
-    this.fetchData();
-  }
-
-  onStep(stepIdx) {
-    this.setState({
-      loadingStep: stepIdx,
-    });
-  }
-
-  fetchData() {
-    this.data.fetchData(this.onStep.bind(this))
-    .catch((error) => {
-      if (error.message === 'Analysis is invalid') {
-        this.setState({ analysisInvalid: error.reason });
-      } else {
-        console.error(error);
-        this.setState({ error });
-      }
-    })
-    .then(() => {
-      this.props.onLoaded(this.data);
-    });
-  }
-
-  renderAnalysisInvalid() {
-    const { analysisInvalid } = this.state;
-    if (!analysisInvalid) return null;
-
-    const text = analysisInvalid === INVALID_REASONS.NOT_EXISTS ? 'Sorry your analysis doesn\'t exist or is not finished yet'
-               : analysisInvalid === INVALID_REASONS.NO_SEGMENTS ? 'Sorry your analysis needs to use segmentation'
-               : 'Sorry your analysis is invalid';
-    return <strong className="text-danger">{text}</strong>;
-  }
-
-  render() {
-    const { loadingStep, error } = this.state;
-    return (
-      <div className="Loading">
-        <Loader>
-          <div>Fetching your data</div>
-          {LOADING_STEPS.map((name, i) =>
-            <div key={i} className="Loading-state clearfix">
-              <span className="Loading-state-name">{name} ...</span>
-              <span className="Loading-state-status">{loadingStep >= i && 'done'}</span>
-            </div>,
-          )}
-          {this.renderAnalysisInvalid()}
-          {error &&
-            <div className="text-warning">{error.message}</div>
-          }
-        </Loader>
-      </div>
-    );
-  }
-}
+  return (
+    <div className="Loading">
+      <Loader>
+        {LOADING_STEPS.map((name, i) =>
+          <div key={i} className="Loading-state clearfix">
+            <span className="Loading-state-name">{name} ...</span>
+            <span className="Loading-state-status">{step > i + 1 && 'done'}</span>
+          </div>,
+        )}
+        {errorMessage && <strong className="text-danger">{errorMessage}</strong>}
+      </Loader>
+    </div>
+  );
+};
+Loading.propTypes = {
+  step: PropTypes.number.isRequired,
+  error: PropTypes.instanceOf(Error),
+};
 
 export default Loading;

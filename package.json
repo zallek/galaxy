@@ -32,8 +32,10 @@
     "webpack-hot-middleware": "^2.9.1"
   },
   "dependencies": {
+    "blueimp-md5": "^2.6.0",
     "botify-sdk": "git+ssh://git@github.com:botify-hq/botify-sdk-js.git#v1.6.0",
     "botify-sdk-middlewares": "^0.13.0",
+    "dexie": "^1.5.1",
     "react": "^15.0.0",
     "react-dom": "^15.0.0",
     "vis": "^4.17.0"

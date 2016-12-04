@@ -1,57 +1,40 @@
 import React, { PropTypes } from 'react';
 
-import Loader from './Loader';
 import VisNetwork from './VisNetwork';
 
 
-const Galaxy = ({ data }) => {
-  const { pages } = data;
+export default class Galaxy {
+  static propTypes = {
+    analysis: PropTypes.any,
+  };
 
-  const edges = [];
-  const nodes = pages.map((page, i) => {
-    edges.push(...page.outlinks.map(outlink => ({
-      from: i,
-      to: outlink.pageIdx,
-      width: outlink.count,
-    })));
-    return {
-      id: i,
-      // fixed: i === 4,
-    };
-  });
-  console.log('Nb nodes', nodes.length);
-  console.log('nodes', nodes);
-  console.log('Nb edges', edges.length);
-  console.log('edges', edges);
+  componentDidMount() {
+    this.props.analysis.getGroup(0)
+    .then(data => this.setState({ data }));
+  }
 
-  return (
-    <VisNetwork
-      nodes={nodes}
-      edges={edges}
-      options={{
-        /* edges: {
-          physics: false,
-          hidden: true,
-        },
-        physics: {
-          enabled: false,
-        },*/
-        physics: {
-          solver: 'forceAtlas2Based',
-        },
-      }}
-    >
-      <Loader>
-        Loading Visualisation
-      </Loader>
-    </VisNetwork>
-  );
-};
-Galaxy.propTypes = {
-  data: PropTypes.shape({
-    pages: PropTypes.array,
-    pagesIndex: PropTypes.object,
-  }),
-};
+  renderNetwork() {
+    const { nodes, edges } = this.setState;
+    return (
+      <VisNetwork
+        nodes={nodes}
+        edges={edges}
+        options={{
+          physics: {
+            solver: 'forceAtlas2Based',
+          },
+        }}
+      />
+    );
+  }
 
-export default Galaxy;
+  render() {
+    if (!this.state.nodes) return null;
+
+    return (
+      <div className="Galaxy">
+        {this.renderNetwork()}
+      </div>
+    );
+  }
+}
