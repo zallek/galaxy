@@ -33,12 +33,17 @@ export default class Galaxy extends React.Component {
     const nodes = this.state.nodes.map(node => ({
       id: node.id,
       value: node.count,
+      label: node.key1,
       group: node.id,
     }));
     const edges = this.state.links.map(link => ({
       from: link.from,
       to: link.to,
       value: link.count,
+      physics: link.count > 1000,
+      color: {
+        opacity: 0.1, // link.count <= 1000 ? 0.2 : 1,
+      },
     }));
     return (
       <VisNetwork
@@ -47,6 +52,16 @@ export default class Galaxy extends React.Component {
         options={{
           physics: {
             solver: 'forceAtlas2Based',
+            stabilization: false,
+          },
+          nodes: {
+            shape: 'dot',
+            font: {
+              color: '#fff',
+            },
+          },
+          edges: {
+            arrows: 'to',
           },
         }}
       />
