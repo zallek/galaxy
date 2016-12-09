@@ -50,21 +50,21 @@ export default class VisNetwork extends React.Component {
   componentDidMount() {
     const { nodes, edges, options } = this.props;
 
-    this.timeline = new Network(this.networkNode, {
+    this.network = new Network(this.networkNode, {
       nodes,
       edges,
     }, options);
-    this.timeline.setOptions(options);
+    this.network.setOptions(options);
   }
 
   componentWillReceiveProps(nextProps) {
     if (nextProps.nodes !== this.props.nodes) {
       console.log('update nodes');
-      this.timeline.setNodes(nextProps.nodes);
+      this.network.setNodes(nextProps.nodes);
     }
     if (nextProps.edges !== this.props.edges) {
       console.log('update edges');
-      this.timeline.setEdges(nextProps.edges);
+      this.network.setEdges(nextProps.edges);
     }
   }
 
