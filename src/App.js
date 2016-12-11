@@ -16,7 +16,6 @@ class App extends React.Component {
       analysis: null,
       loadingSteps: null,
       loadingError: null,
-      ready: false,
     };
 
     this.onChooseAnalysis = this.onChooseAnalysis.bind(this);
@@ -32,12 +31,11 @@ class App extends React.Component {
     if (id) {
       const analysis = new Analysis(id);
       if (refresh) {
-        this.prepareAnalysis(analysis);
+        this.loadAnalysis(analysis);
       } else {
-        this.setState({
+        analysis.init().then(() => this.setState({
           analysis,
-          ready: true,
-        });
+        }));
       }
     } else {
       // create new analysis
@@ -46,23 +44,23 @@ class App extends React.Component {
       });
 
       createAnalysis(url)
-      .then((analysis) => { this.prepareAnalysis(analysis); })
+      .then((analysis) => { this.loadAnalysis(analysis); })
       .catch((loadingError) => { this.setState({ loadingError }); });
     }
   }
 
-  prepareAnalysis(analysis) {
-    Promise.resolve()
-    .then(() => {
+  loadAnalysis(analysis) {
+    this.setState({
+      loadingSteps: {
+        creation: true,
+      },
+    });
+    analysis.prepare((s) => {
       this.setState({
-        analysis,
-        loadingSteps: {
-          creation: true,
-        },
+        loadingSteps: { ...s, creation: true },
       });
-      return analysis.prepare((s) => { this.setState({ loadingSteps: { ...s, creation: true } }); });
     })
-    .then(() => { this.setState({ ready: true }); })
+    .then(() => { this.setState({ analysis }); })
     .catch((loadingError) => { this.setState({ loadingError }); });
   }
 
@@ -94,8 +92,8 @@ class App extends React.Component {
   }
 
   render() {
-    const { ready, loadingSteps, loadingError } = this.state;
-    if (ready && !loadingError) return this.renderGalaxy();
+    const { analysis, loadingSteps, loadingError } = this.state;
+    if (analysis && !loadingError) return this.renderGalaxy();
     else if (loadingSteps || loadingError) return this.renderLoading();
     return this.renderForm();
   }

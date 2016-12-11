@@ -2,3 +2,17 @@
   width: 100%;
   height: 100vh;
 }
+
+.Galaxy-groupby {
+  position: absolute;
+  margin: 5px;
+  z-index: 1;
+}
+.Galaxy-groupby select, .Galaxy-groupby button {
+  width: inherit;
+  display: inline-block;
+  margin-left: 5px;
+  background-color: inherit;
+  color: inherit;
+  cursor: pointer;
+}

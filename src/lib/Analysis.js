@@ -60,6 +60,14 @@ export default class Analysis {
     });
   }
 
+  init() {
+    return analysesDB.analyses.get(this.id)
+    .then((analysis) => {
+      this.info = analysis;
+      BotifySDK.setEnv(analysis.env);
+    });
+  }
+
   /**
    * @param  {Func} notify Called several times wih step done
    * @return {Promise}
@@ -72,8 +80,8 @@ export default class Analysis {
     };
 
     return Promise.resolve()
-    .then(() => this._initSDK())
-    /*.then(() => this._clearDB())
+    .then(() => this.init())
+    .then(() => this._clearDB())
     // Pages
     .then(() => this._prepareExport(EXPORTS.ALL_URL_DETAILS))
     .then(exportUrl => this._storePagesFromExtract(exportUrl, (nbDone) => {
@@ -85,7 +93,7 @@ export default class Analysis {
     .then(exportUrl => this._storeLinksFromExtract(exportUrl, (nbDone) => {
       status.links = nbDone / this.info.links;
       notify(status);
-    }))*/
+    }))
     // Prepare first visualisation
     .then(() => this._prepareFirstGroup())
     .then(() => {
@@ -103,10 +111,11 @@ export default class Analysis {
     let groupId = null;
 
     return this.db.groups.count()
-    .then((count) => { groupId = count; })
+    .then((count) => { groupId = count + 1; })
     .then(() => this._computeGroupNodes(groupId, groupBy1, groupBy2))
     .then(urlsNodeId => this._computeGroupLinks(groupId, followValue, urlsNodeId))
-    .then(() => this.db.groups.add({ id: groupId, groupBy1, groupBy2 }));
+    .then(() => this.db.groups.add({ id: groupId, groupBy1, groupBy2 }))
+    .then(() => groupId);
   }
 
   getGroup(id) {
@@ -122,14 +131,6 @@ export default class Analysis {
   }
 
   // PRIVATE
-
-  _initSDK() {
-    return analysesDB.analyses.get(this.id)
-    .then((analysis) => {
-      this.info = analysis;
-      BotifySDK.setEnv(analysis.env);
-    });
-  }
 
   _clearDB() {
     return Promise.all([
@@ -415,6 +416,7 @@ export function createAnalysis(url) {
       knownUrls: analysis.urls_done + analysis.urls_in_queue,
       links: null,
       segmentsName: analysis.features.segments.names,
+      extractsName: analysis.features.extract ? analysis.features.extract.map(e => e.name) : [],
       ready: false,
     })
     .then(() => new Analysis(analysis.id));
