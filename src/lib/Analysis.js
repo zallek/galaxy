@@ -1,6 +1,6 @@
 import Dexie from 'dexie';
 import md5 from 'blueimp-md5';
-import csvParse from 'csv-parse/lib/sync';
+import Papa from 'papaparse';
 
 import BotifySDK from './sdk';
 
@@ -10,12 +10,6 @@ Promise = Dexie.Promise;
 const EXPORTS = {
   ALL_LINKS: 'ALL_LINKS',
   ALL_URL_DETAILS: 'ALL_URL_DETAILS',
-};
-
-export const PREPARE_STEPS = {
-  LINKS: 0,
-  SEGMENTS: 1,
-  VISUALISATION: 2,
 };
 
 export const INVALID_REASONS = {
@@ -59,8 +53,8 @@ export default class Analysis {
     this.db = new Dexie(`Analysis-${id}`);
     this.db.version(1).stores({
       urls: 'id', // url,segment1, segment2, segment3
-      links: '++id, follow', // destination
-      groups: '++id, [groupBy1+groupBy2]',
+      links: '++id', // destination
+      groups: 'id, [groupBy1+groupBy2]',
       groupsNodes: 'id, group', // key1, key2, count
       groupsLinks: 'id, group', // from, to, count',
     });
@@ -71,22 +65,33 @@ export default class Analysis {
    * @return {Promise}
    */
   prepare(notify) {
+    const status = {
+      pages: 0,
+      links: 0,
+      visualisation: 0,
+    };
+
     return Promise.resolve()
     .then(() => this._initSDK())
-    .then(() => this._clearDB())
+    /*.then(() => this._clearDB())
+    // Pages
+    .then(() => this._prepareExport(EXPORTS.ALL_URL_DETAILS))
+    .then(exportUrl => this._storePagesFromExtract(exportUrl, (nbDone) => {
+      status.pages = nbDone / this.info.crawledUrls;
+      notify(status);
+    }))
     // Links
     .then(() => this._prepareExport(EXPORTS.ALL_LINKS))
-    .then(downloadUrl => this._downloadExport(downloadUrl))
-    .then(links => this._storeLinksFromExtract(csvParse(links, { columns: true })))
-    .then(() => notify(PREPARE_STEPS.LINKS))
-    // Segments
-    .then(() => this._prepareExport(EXPORTS.ALL_URL_DETAILS))
-    .then(downloadUrl => this._downloadExport(downloadUrl))
-    .then(allUrls => this._storeSegmentsFromExtract(csvParse(allUrls, { columns: true })))
-    .then(() => notify(PREPARE_STEPS.SEGMENTS))
+    .then(exportUrl => this._storeLinksFromExtract(exportUrl, (nbDone) => {
+      status.links = nbDone / this.info.links;
+      notify(status);
+    }))*/
     // Prepare first visualisation
     .then(() => this._prepareFirstGroup())
-    .then(() => notify(PREPARE_STEPS.VISUALISATION))
+    .then(() => {
+      status.visualisation = 1;
+      notify(status);
+    })
     // Set ready
     .then(() => this._setReady());
   }
@@ -95,12 +100,13 @@ export default class Analysis {
     const followValue = followType === 'Follow' ? 1
                        : followType === 'NoFollow' ? 0
                        : null;
-    let group = null;
+    let groupId = null;
 
-    return this.db.groups.add({ groupBy1, groupBy2 })
-    .then((g) => { group = g; })
-    .then(() => this._computeGroupNodes(group, groupBy1, groupBy2))
-    .then(urlsNodeId => this._computeGroupLinks(group, groupBy1, groupBy2, followValue, urlsNodeId));
+    return this.db.groups.count()
+    .then((count) => { groupId = count; })
+    .then(() => this._computeGroupNodes(groupId, groupBy1, groupBy2))
+    .then(urlsNodeId => this._computeGroupLinks(groupId, followValue, urlsNodeId))
+    .then(() => this.db.groups.add({ id: groupId, groupBy1, groupBy2 }));
   }
 
   getGroup(id) {
@@ -139,10 +145,22 @@ export default class Analysis {
     return this._checkIfExportAlreadyExist(type)
     .then((exportUrl) => {
       if (!exportUrl) {
-        return this._createExport(type);
+        // return this._createExport(type); // workaround
+        throw new Error('No export available');
       }
       return exportUrl;
-    });
+    })
+    .then(this._fixExportUrl); // workaround
+  }
+
+  /**
+   * https://X/advanced_exports/Y
+   * to
+   * https://X/advanced_exports/fixed/Y
+   */
+  _fixExportUrl(exportUrl) {
+    return exportUrl.replace('advanced_exports', 'advanced_exports/nogzip')
+                    .replace('csv.gz', 'csv');
   }
 
   _checkIfExportAlreadyExist(type) {
@@ -172,69 +190,102 @@ export default class Analysis {
     .then(job => job.results.download_url);
   }
 
-  _downloadExport(url) {
-    return new Promise((resolve, reject) => {
-      const oReq = new XMLHttpRequest();
-      oReq.open('GET', url, true);
-      oReq.onload = () => {
-        resolve(oReq.response);
-      };
-      oReq.onError = () => {
-        reject(new Error(oReq.status));
-      };
-      oReq.send();
-    });
-  }
-
-  _addUrl(id, url) {
-    return this.db.urls.add({
-      id,
-      url,
-      segment1: '',
-      segment2: '',
-    });
-  }
-
-  _storeLinksFromExtract(links) {
+  _storePagesFromExtract(pagesUrl, notifyNbDone) {
+    let isHeader = true;
+    let nbHTMLExtracts = 0;
     let nbLinks = 0;
-    const urlsId = new Set();
+    let nbUrls = 0;
 
-    return this.db.transaction('rw', this.db.urls, this.db.links, () => {
-      links.forEach((link) => {
-        if (link['Internal / External'] !== 'Internal') return;
-        nbLinks++;
+    return this.db.transaction('rw', this.db.urls, () => {
+      return new Promise((resolve, reject) => {
+        Papa.parse(pagesUrl, {
+          download: true,
+          chunk: ({ data }) => {
+            const urls = [];
+            data.forEach((page) => {
+              if (isHeader) {
+                isHeader = false;
+                nbHTMLExtracts = page.length - 25; // HTML extracts are the first 0-3 columns
+                return;
+              }
+              const url = page[24 + nbHTMLExtracts];
+              if (!url) return;
 
-        const sourceId = md5(link['Url Source']);
-        const destinationId = md5(link['Url Destination']);
+              const nbInlinks = Number.parseInt(page[16 + nbHTMLExtracts], 10);
+              urls.push({
+                id: md5(url),
+                compliant: page[0 + nbHTMLExtracts] === 'True',
+                httpCode: Number.parseInt(page[12 + nbHTMLExtracts], 10),
+                responseTime: Number.parseInt(page[7 + nbHTMLExtracts], 10),
+                pagerank: Number.parseFloat(page[13 + nbHTMLExtracts], 10),
+                pagerankPosition: Number.parseInt(page[14 + nbHTMLExtracts], 10),
+                nbInlinks,
+                nbOutlinks: Number.parseInt(page[17 + nbHTMLExtracts], 10),
+                segment1: page[20 + nbHTMLExtracts],
+                segment2: page[21 + nbHTMLExtracts],
+                extract1: nbHTMLExtracts > 0 ? page[0] : null,
+                extract2: nbHTMLExtracts > 1 ? page[1] : null,
+                extract3: nbHTMLExtracts > 2 ? page[2] : null,
+                extract4: nbHTMLExtracts > 3 ? page[3] : null,
+              });
+              nbLinks += nbInlinks;
+              nbUrls++;
+            });
 
-        // register urls
-        if (!urlsId.has(sourceId)) {
-          urlsId.add(sourceId);
-          this._addUrl(sourceId, link['Url Source']);
-        }
-        if (!urlsId.has(destinationId)) {
-          urlsId.add(destinationId);
-          this._addUrl(destinationId, link['Url Destination']);
-        }
-
-        // register link
-        this.db.links.add({
-          source: sourceId,
-          destination: destinationId,
-          follow: link['Follow / No-Follow'] === 'Follow' ? 1 : 0,
+            this.db.urls.bulkPut(urls);
+            notifyNbDone(nbUrls);
+          },
+          complete: () => {
+            this.info.links = nbLinks;
+            resolve();
+          },
+          error: reject,
+          withCredidentials: true,
         });
       });
-    })
-    .then(() => { this.info.links = nbLinks; });
+    });
   }
 
-  _storeSegmentsFromExtract(pages) {
-    return this.db.transaction('rw', this.db.urls, () => {
-      pages.forEach((page) => {
-        const id = md5(page.url);
-        this.db.urls.update(id, {
-          segment1: page.segment_1 || getRandomInt(0, 20).toString(),
-          segment2: page.segment_2,
+  _storeLinksFromExtract(linksUrl, notifyNbDone) {
+    let isHeader = true;
+    let nbLinks = 0;
+
+    return this.db.transaction('rw', this.db.links, () => {
+      return new Promise((resolve, reject) => {
+        Papa.parse(linksUrl, {
+          download: true,
+          chunk: ({ data }) => {
+            const links = [];
+
+            data.forEach((link) => {
+              if (isHeader) {
+                isHeader = false;
+                return;
+              }
+
+              if (link[2] !== 'Internal') return;
+              nbLinks++;
+
+              const source = md5(link[0]);
+              const destination = md5(link[1]);
+
+              // register link
+              links.push({
+                source,
+                destination,
+                follow: link[3] === 'Follow' ? 1 : 0,
+              });
+            });
+
+            this.db.links.bulkAdd(links);
+            notifyNbDone(nbLinks);
+          },
+          complete: () => {
+            this.info.links = nbLinks;
+            resolve();
+          },
+          error: reject,
+          withCredidentials: true,
         });
       });
     });
@@ -258,7 +309,7 @@ export default class Analysis {
   }
 
   _computeGroupNodes(group, groupBy1, groupBy2) {
-    const urlsNodeId = new Map(); // url id to node Id
+    const urlsNodeId = new Map();
     const nodesId = new Map();    // node key to node id
     const nodesValue = [];
 
@@ -273,13 +324,28 @@ export default class Analysis {
       } else {
         nodesValue[nodeId - 1].count++;
       }
+
+      // Register url to node
       urlsNodeId.set(url.id, nodeId);
+
+      // Can it OOM ? Should be good up to 50k crawled urls
+      // urlsNodeId contains one item by crawled url.
+      // urlsNodeId key is a String of about 60 character
+      //            value is an Integer
+      // So 1 item is about 128 bytes (60 * 2 + 8)
+      // 50k items is about 60MB (128 bytes * 50000)
+    })
+    .then(() => {
+      const unknownUrls = this.info.knownUrls - this.info.crawledUrls;
+      if (unknownUrls > 0) {
+        this.nodesValue.push({ id: 'unknown', group, key1: null, key2: null, count: unknownUrls });
+      }
     })
     .then(() => this.db.groupsNodes.bulkAdd(nodesValue))
     .then(() => urlsNodeId);
   }
 
-  _computeGroupLinks(group, groupBy1, groupBy2, followValue, urlsNodeId) {
+  _computeGroupLinks(group, followValue, urlsNodeId) {
     const linksId = new Map();
     const linksValue = [];
 
@@ -289,8 +355,8 @@ export default class Analysis {
     }
 
     return pt.each((link) => {
-      const fromId = urlsNodeId.get(link.source);
-      const toId = urlsNodeId.get(link.destination);
+      const fromId = urlsNodeId.get(link.source) || 'unknown';
+      const toId = urlsNodeId.get(link.destination) || 'unknown';
       const linkKey = md5(`${fromId}:${toId}`);
 
       let linkId = linksId.get(linkKey);

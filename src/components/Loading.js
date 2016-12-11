@@ -6,13 +6,13 @@ import './Loading.css';
 
 
 const LOADING_STEPS = [
-  'Fetching Analysis Info',
-  'Fetching URLs Links',
-  'Fetching URLs Segments',
-  'Preparing Visualisation',
+  { key: 'creation', label: 'Fetching Analysis Info' },
+  { key: 'pages', label: 'Fetching URLs', progress: true },
+  { key: 'links', label: 'Fetching URLs Links', progress: true },
+  { key: 'visualisation', label: 'Preparing Visualisation' },
 ];
 
-const Loading = ({ step, error }) => {
+const Loading = ({ steps, error }) => {
   let errorMessage = null;
   if (error) {
     if (!error.reason) {
@@ -29,10 +29,14 @@ const Loading = ({ step, error }) => {
   return (
     <div className="Loading">
       <Loader>
-        {LOADING_STEPS.map((name, i) =>
+        {LOADING_STEPS.map(({ key, label, progress }, i) =>
           <div key={i} className="Loading-state clearfix">
-            <span className="Loading-state-name">{name} ...</span>
-            <span className="Loading-state-status">{step > i + 1 && 'done'}</span>
+            <span className="Loading-state-name">{label} ...</span>
+            <span className="Loading-state-status">
+              { progress && steps[key] && steps[key] !== 1 ? `${Math.floor(steps[key] * 100)}%`
+              : steps[key] ? 'done'
+              : ''}
+            </span>
           </div>,
         )}
         {errorMessage && <strong className="text-danger">{errorMessage}</strong>}
@@ -41,7 +45,7 @@ const Loading = ({ step, error }) => {
   );
 };
 Loading.propTypes = {
-  step: PropTypes.number.isRequired,
+  steps: PropTypes.object.isRequired,
   error: PropTypes.instanceOf(Error),
 };
 
