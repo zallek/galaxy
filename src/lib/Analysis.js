@@ -320,6 +320,7 @@ export default class Analysis {
   }
 
   _computeGroupNodes(group, groupBy1, groupBy2) {
+    let startTime = new Date();
     const urlsNodeId = new Map();
     const nodesId = new Map();    // node key to node id
     const nodesValue = [];
@@ -357,11 +358,19 @@ export default class Analysis {
         this.nodesValue.push({ id: 'unknown', group, key1: null, key2: null, count: unknownUrls });
       }
     })
-    .then(() => this.db.groupsNodes.bulkAdd(nodesValue))
-    .then(() => urlsNodeId);
+    .then(() => {
+      console.log('Group nodes took', new Date() - startTime, 'ms to compute');
+      startTime = new Date();
+      return this.db.groupsNodes.bulkAdd(nodesValue);
+    })
+    .then(() => {
+      console.log('Group nodes took', new Date() - startTime, 'ms to store');
+      return urlsNodeId;
+    });
   }
 
   _computeGroupLinks(group, followValue, urlsNodeId) {
+    let startTime = new Date();
     const linksId = new Map();
     const linksValue = [];
 
@@ -391,7 +400,14 @@ export default class Analysis {
         linksValue[linkId - offsetId - 1].count++;
       }
     }))
-    .then(() => this.db.groupsLinks.bulkAdd(linksValue));
+    .then(() => {
+      console.log('Group links took', new Date() - startTime, 'ms to compute');
+      startTime = new Date();
+      return this.db.groupsLinks.bulkAdd(linksValue);
+    })
+    .then(() => {
+      console.log('Group links took', new Date() - startTime, 'ms to store');
+    });
   }
 
 }

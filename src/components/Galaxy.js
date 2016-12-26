@@ -58,16 +58,12 @@ class GroupBy extends React.Component {
             <option key={choice.value} value={choice.value}>{choice.label}</option>,
           )}
         </select>
-        {(!currentGroup || currentGroup.status !== GROUP_STATUS.COMPUTING) &&
-        <button className="form-control btn-primary" onClick={() => onChange(tempValue)}>
-          {!currentGroup ? 'Compute'
-          : currentGroup.status === GROUP_STATUS.FAILED ? 'Retry'
-          : 'Change'
-          }
-        </button>
+        {currentGroup && currentGroup.status === GROUP_STATUS.SUCCESS &&
+          <button className="form-control btn-success" onClick={() => onChange(tempValue)}>Change</button>
         }
-        {currentGroup && currentGroup.status === GROUP_STATUS.COMPUTING &&
-          <span className="label label-warning">Computing</span>
+        {(currentGroup && currentGroup.status === GROUP_STATUS.COMPUTING) ?
+          <span className="label label-warning">Computing</span> :
+          <button className="form-control btn-primary" onClick={() => onChange(tempValue, true)}>Recompute</button>
         }
         {currentGroup && currentGroup.status === GROUP_STATUS.FAILED &&
           <span className="label label-danger">Error {currentGroup.error && currentGroup.error.message}</span>
@@ -155,14 +151,14 @@ export default class Galaxy extends React.Component {
         choices={choices}
         groups={groups}
         value={currentGroup}
-        onChange={(newGroup) => {
+        onChange={(newGroup, recompute) => {
           const groupKey = [`${newGroup[0]}:${newGroup[1]}`];
           this.setState({
             currentGroup: newGroup,
           });
 
           const group = groups[groupKey];
-          if (group) {
+          if (!recompute && group) {
             if (group.error) return;
             this.updateViz(group.id);
           } else {
