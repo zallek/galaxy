@@ -2,6 +2,7 @@ import React, { PropTypes } from 'react';
 
 import VisNetwork from './VisNetwork';
 import './Galaxy.css';
+import { GROUP_STATUS } from '../lib/Analysis';
 
 
 class GroupBy extends React.Component {
@@ -9,7 +10,7 @@ class GroupBy extends React.Component {
   static propTypes = {
     choices: PropTypes.array.isRequired,
     value: PropTypes.array.isRequired,
-    computedGroups: PropTypes.object.isRequired,
+    groups: PropTypes.object.isRequired,
     onChange: PropTypes.func.isRequired,
   };
 
@@ -17,33 +18,36 @@ class GroupBy extends React.Component {
     super(props);
 
     this.state = {
-      tempValue: props.value,
+      tempValue: props.value.map(v => v || 'null'),
     };
 
     this.updateTempValue = this.updateTempValue.bind(this);
   }
 
   componentWillReceiveProps(props) {
-    this.setState({ tempValue: props.value });
+    this.setState({ tempValue: props.value.map(v => v || 'null') });
   }
 
   updateTempValue(v, side) {
     const { tempValue } = this.state;
+    const newPartValue = v === 'null' ? null : v;
+
     if (side === 'left') {
-      this.setState({ tempValue: [v, tempValue[1]] });
+      this.setState({ tempValue: [newPartValue, tempValue[1]] });
     } else {
-      this.setState({ tempValue: [tempValue[0], v] });
+      this.setState({ tempValue: [tempValue[0], newPartValue] });
     }
   }
 
   render() {
-    const { choices, value, computedGroups, onChange } = this.props;
+    const { choices, groups, onChange } = this.props;
     const { tempValue } = this.state;
-    const valueChanged = tempValue[0] !== value[0] || tempValue[1] !== value[1];
+    const currentGroup = groups[tempValue.join(':')];
+    console.log('render groupby', currentGroup);
 
     return (
       <div className="Galaxy-groupby">
-        <span>GroupBy</span>
+        <span>Group by</span>
         <select className="form-control" value={tempValue[0]} onChange={e => this.updateTempValue(e.target.value, 'left')} >
           {choices.map(choice =>
             <option key={choice.value} value={choice.value}>{choice.label}</option>,
@@ -55,10 +59,19 @@ class GroupBy extends React.Component {
             <option key={choice.value} value={choice.value}>{choice.label}</option>,
           )}
         </select>
-        {valueChanged &&
+        {(!currentGroup || currentGroup.status !== GROUP_STATUS.COMPUTING) &&
         <button className="form-control btn-primary" onClick={() => onChange(tempValue)}>
-          {computedGroups[tempValue.join(':')] ? 'Change' : 'Compute'}
+          {!currentGroup ? 'Compute'
+          : currentGroup.status === GROUP_STATUS.FAILED ? 'Retry'
+          : 'Change'
+          }
         </button>
+        }
+        {currentGroup && currentGroup.status === GROUP_STATUS.COMPUTING &&
+          <span className="label label-warning">Computing</span>
+        }
+        {currentGroup && currentGroup.status === GROUP_STATUS.FAILED &&
+          <span className="label label-danger">Error {currentGroup.error && currentGroup.error.message}</span>
         }
       </div>
     );
@@ -74,8 +87,8 @@ export default class Galaxy extends React.Component {
     super(props);
 
     this.state = {
-      currentGroup: ['segment1', 'null'],
-      computedGroups: {},
+      currentGroup: ['segment1', null],
+      groups: {},
       nodes: null,
       links: null,
     };
@@ -83,13 +96,21 @@ export default class Galaxy extends React.Component {
 
   componentDidMount() {
     this.props.analysis.getGroups()
-    .then((groups) => {
-      const computedGroups = {};
-      groups.forEach((group) => {
-        computedGroups[`${group.key1}:${group.key2}`] = group.id;
+    .then((initGroups) => {
+      const groups = {};
+      initGroups.forEach((group) => {
+        console.log('componentDidMount', group.status);
+        if (!group.status) {
+          groups[`${group.groupBy1}:${group.groupBy2}`] = {
+            id: group.id,
+            status: GROUP_STATUS.SUCCESS,
+          };
+        }
       });
-      this.setState({ computedGroups });
-      this.updateViz(groups[0].id);
+      this.setState({ groups });
+      if (initGroups.length) {
+        this.updateViz(initGroups[0].id);
+      }
     });
   }
 
@@ -115,7 +136,7 @@ export default class Galaxy extends React.Component {
 
   renderGroupBy() {
     const { analysis } = this.props;
-    const { computedGroups, currentGroup } = this.state;
+    const { groups, currentGroup } = this.state;
 
     const choices = []
     .concat(analysis.info.segmentsName.map((item, i) => ({
@@ -134,21 +155,37 @@ export default class Galaxy extends React.Component {
     return (
       <GroupBy
         choices={choices}
-        computedGroups={computedGroups}
+        groups={groups}
         value={currentGroup}
         onChange={(newGroup) => {
-          this.setState({ currentGroup: newGroup });
-          const group = computedGroups[newGroup.join(':')];
+          const groupKey = [`${newGroup[0]}:${newGroup[1]}`];
+          this.setState({
+            currentGroup: newGroup,
+          });
+
+          const group = groups[groupKey];
           if (group) {
-            this.updateViz(group);
+            console.log('already computed');
+            if (group.error) return;
+            this.updateViz(group.id);
           } else {
+            console.log('not computed');
+            this.setState({
+              groups: { ...groups, [groupKey]: { status: GROUP_STATUS.COMPUTING } },
+            });
             analysis.computeGroup(...newGroup)
             .then((id) => {
+              console.log('computed finished');
               this.setState({
-                ...computedGroups,
-                [newGroup.join(':')]: id,
+                groups: { ...groups, [groupKey]: { id, status: GROUP_STATUS.SUCCESS } },
               });
               this.updateViz(id);
+            })
+            .catch((error) => {
+              console.error('error', error);
+              this.setState({
+                groups: { ...groups, [groupKey]: { status: GROUP_STATUS.FAILED, error } },
+              });
             });
           }
         }}
@@ -158,7 +195,7 @@ export default class Galaxy extends React.Component {
 
   renderNetwork() {
     if (!this.state.nodes) return null;
-    console.log('render', this.state.nodes.length, this.state.links.length);
+    console.log('render', this.state.groups, this.state.currentGroup, this.state.nodes.length, this.state.links.length);
     return (
       <VisNetwork
         nodes={this.state.nodes}

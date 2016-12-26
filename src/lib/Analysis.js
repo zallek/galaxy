@@ -12,6 +12,12 @@ const EXPORTS = {
   ALL_URL_DETAILS: 'ALL_URL_DETAILS',
 };
 
+export const GROUP_STATUS = {
+  FAILED: 1,
+  SUCCESS: 0,
+  COMPUTING: 2,
+};
+
 export const INVALID_REASONS = {
   NOT_EXISTS: 0,
   NO_SEGMENTS: 1,
@@ -54,7 +60,7 @@ export default class Analysis {
     this.db.version(1).stores({
       urls: 'id', // url,segment1, segment2, segment3
       links: '++id', // destination
-      groups: 'id, [groupBy1+groupBy2]',
+      groups: '++id, [groupBy1+groupBy2]',
       groupsNodes: 'id, group', // key1, key2, count
       groupsLinks: 'id, group', // from, to, count',
     });
@@ -104,21 +110,27 @@ export default class Analysis {
     .then(() => this._setReady());
   }
 
-  computeGroup(groupBy1, groupBy2 = '', followType) {
+  computeGroup(groupBy1, groupBy2, followType) {
+    console.log('compute', groupBy1, groupBy2);
     const followValue = followType === 'Follow' ? 1
                        : followType === 'NoFollow' ? 0
                        : null;
     let groupId = null;
 
-    return this.db.groups.count()
-    .then((count) => { groupId = count + 1; })
+    return this.db.groups.add({ groupBy1, groupBy2, status: GROUP_STATUS.COMPUTING })
+    .then((newGroupId) => { groupId = newGroupId; })
     .then(() => this._computeGroupNodes(groupId, groupBy1, groupBy2))
     .then(urlsNodeId => this._computeGroupLinks(groupId, followValue, urlsNodeId))
-    .then(() => this.db.groups.add({ id: groupId, groupBy1, groupBy2 }))
+    .catch((e) => {
+      this.db.groups.update(groupId, { status: GROUP_STATUS.FAILED });
+      throw e;
+    })
+    .then(() => this.db.groups.update(groupId, { status: GROUP_STATUS.SUCCESS }))
     .then(() => groupId);
   }
 
   getGroup(id) {
+    console.log('getGroup', id);
     return Promise.all([
       this.db.groupsNodes.where('group').equals(id).toArray(),
       this.db.groupsLinks.where('group').equals(id).toArray(),
@@ -310,20 +322,26 @@ export default class Analysis {
   }
 
   _computeGroupNodes(group, groupBy1, groupBy2) {
+    console.log('_computeGroupNodes');
     const urlsNodeId = new Map();
     const nodesId = new Map();    // node key to node id
     const nodesValue = [];
 
-    return this.db.urls.each((url) => {
+    return this.db.groupsNodes.count()
+    .then(idOffset => this.db.urls.each((url) => {
       // Register url in a groupNode
       const [nodeKey, key1, key2] = this._computeGroupNodeKey(url, groupBy1, groupBy2);
       let nodeId = nodesId.get(nodeKey);
       if (!nodeId) {
-        nodeId = nodesId.size + 1; // make ids start at 1
+        if (nodesId.size > 99) {
+          throw new Error('To many nodes (>100)');
+        }
+
+        nodeId = nodesId.size + idOffset + 1; // make ids start at 1
         nodesId.set(nodeKey, nodeId);
         nodesValue.push({ id: nodeId, group, key1, key2, count: 1 });
       } else {
-        nodesValue[nodeId - 1].count++;
+        nodesValue[nodeId - idOffset - 1].count++;
       }
 
       // Register url to node
@@ -335,7 +353,7 @@ export default class Analysis {
       //            value is an Integer
       // So 1 item is about 128 bytes (60 * 2 + 8)
       // 50k items is about 60MB (128 bytes * 50000)
-    })
+    }))
     .then(() => {
       const unknownUrls = this.info.knownUrls - this.info.crawledUrls;
       if (unknownUrls > 0) {
@@ -347,6 +365,7 @@ export default class Analysis {
   }
 
   _computeGroupLinks(group, followValue, urlsNodeId) {
+    console.log('_computeGroupLinks');
     const linksId = new Map();
     const linksValue = [];
 
@@ -355,14 +374,15 @@ export default class Analysis {
       pt = pt.where('follow').equals(followValue);
     }
 
-    return pt.each((link) => {
+    return this.db.groupsLinks.count()
+    .then(offsetId => pt.each((link) => {
       const fromId = urlsNodeId.get(link.source) || 'unknown';
       const toId = urlsNodeId.get(link.destination) || 'unknown';
       const linkKey = md5(`${fromId}:${toId}`);
 
       let linkId = linksId.get(linkKey);
       if (!linkId) {
-        linkId = linksId.size + 1; // make ids start at 1
+        linkId = linksId.size + offsetId + 1; // make ids start at 1
         linksId.set(linkKey, linkId);
         linksValue.push({
           id: linkId,
@@ -372,9 +392,9 @@ export default class Analysis {
           count: 1,
         });
       } else {
-        linksValue[linkId - 1].count++;
+        linksValue[linkId - offsetId - 1].count++;
       }
-    })
+    }))
     .then(() => this.db.groupsLinks.bulkAdd(linksValue));
   }
 
