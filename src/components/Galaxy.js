@@ -185,7 +185,6 @@ export default class Galaxy extends React.Component {
 
   renderNetwork() {
     if (!this.state.nodes) return null;
-    console.log('render', this.state.groups, this.state.currentGroup);
     return (
       <VisNetwork
         nodes={this.state.nodes}

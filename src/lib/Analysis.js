@@ -129,11 +129,15 @@ export default class Analysis {
   }
 
   getGroup(id) {
+    const startTime = new Date();
     return Promise.all([
       this.db.groupsNodes.where('group').equals(id).toArray(),
       this.db.groupsLinks.where('group').equals(id).toArray(),
     ])
-    .then(([nodes, links]) => ({ nodes, links }));
+    .then(([nodes, links]) => {
+      console.log('Group took', new Date() - startTime, 'ms to read from db');
+      return { nodes, links };
+    });
   }
 
   getGroups() {
