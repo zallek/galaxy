@@ -203,7 +203,7 @@ export default class Galaxy extends React.Component {
           edges: {
             arrows: 'to',
             color: {
-              opacity: 0.1,
+              opacity: 0.15,
             },
           },
         }}

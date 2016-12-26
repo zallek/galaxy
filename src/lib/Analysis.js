@@ -110,16 +110,13 @@ export default class Analysis {
     .then(() => this._setReady());
   }
 
-  computeGroup(groupBy1, groupBy2, followType) {
-    const followValue = followType === 'Follow' ? 1
-                       : followType === 'NoFollow' ? 0
-                       : null;
+  computeGroup(groupBy1, groupBy2) {
     let groupId = null;
 
     return this.db.groups.add({ groupBy1, groupBy2, status: GROUP_STATUS.COMPUTING })
     .then((newGroupId) => { groupId = newGroupId; })
     .then(() => this._computeGroupNodes(groupId, groupBy1, groupBy2))
-    .then(urlsNodeId => this._computeGroupLinks(groupId, followValue, urlsNodeId))
+    .then(urlsNodeId => this._computeGroupLinks(groupId, urlsNodeId))
     .catch((e) => {
       this.db.groups.update(groupId, { status: GROUP_STATUS.FAILED });
       throw e;
@@ -330,35 +327,47 @@ export default class Analysis {
     const nodesId = new Map();    // node key to node id
     const nodesValue = [];
 
-    return this.db.groupsNodes.count()
-    .then(idOffset => this.db.urls.each((url) => {
-      const time = new Date();
-      // Register url in a groupNode
-      const [nodeKey, key1, key2] = this._computeGroupNodeKey(url, groupBy1, groupBy2);
-      let nodeId = nodesId.get(nodeKey);
-      if (!nodeId) {
-        if (nodesId.size > 99) {
-          throw new Error('To many nodes (>100)');
+    const computeBatch = (urls, idOffset) => {
+      urls.forEach((url) => {
+        const time = new Date();
+        // Register url in a groupNode
+        const [nodeKey, key1, key2] = this._computeGroupNodeKey(url, groupBy1, groupBy2);
+        let nodeId = nodesId.get(nodeKey);
+        if (!nodeId) {
+          if (nodesId.size > 99) {
+            throw new Error('To many nodes (>100)');
+          }
+
+          nodeId = nodesId.size + idOffset + 1; // make ids start at 1
+          nodesId.set(nodeKey, nodeId);
+          nodesValue.push({ id: nodeId, group, key1, key2, count: 1 });
+        } else {
+          nodesValue[nodeId - idOffset - 1].count++;
         }
 
-        nodeId = nodesId.size + idOffset + 1; // make ids start at 1
-        nodesId.set(nodeKey, nodeId);
-        nodesValue.push({ id: nodeId, group, key1, key2, count: 1 });
-      } else {
-        nodesValue[nodeId - idOffset - 1].count++;
+        // Register url to node
+        urlsNodeId.set(url.id, nodeId);
+
+        // Can it OOM ? Should be good up to 50k crawled urls
+        // urlsNodeId contains one item by crawled url.
+        // urlsNodeId key is a String of about 60 character
+        //            value is an Integer
+        // So 1 item is about 128 bytes (60 * 2 + 8)
+        // 50k items is about 60MB (128 bytes * 50000)
+        inTime += new Date() - time;
+      });
+    };
+
+    return this.db.groupsNodes.count()
+    .then((idOffset) => {
+      let promise = Promise.resolve();
+      for (let i = 0; i < this.info.knownUrls; i += 100000) {
+        promise = promise
+        .then(() => this.db.urls.offset(i).limit(100000).toArray())
+        .then(urls => computeBatch(urls, idOffset));
       }
-
-      // Register url to node
-      urlsNodeId.set(url.id, nodeId);
-
-      // Can it OOM ? Should be good up to 50k crawled urls
-      // urlsNodeId contains one item by crawled url.
-      // urlsNodeId key is a String of about 60 character
-      //            value is an Integer
-      // So 1 item is about 128 bytes (60 * 2 + 8)
-      // 50k items is about 60MB (128 bytes * 50000)
-      inTime += new Date() - time;
-    }))
+      return promise;
+    })
     .then(() => {
       const unknownUrls = this.info.knownUrls - this.info.crawledUrls;
       if (unknownUrls > 0) {
@@ -376,40 +385,47 @@ export default class Analysis {
     });
   }
 
-  _computeGroupLinks(group, followValue, urlsNodeId) {
+  _computeGroupLinks(group, urlsNodeId) {
     let startTime = new Date();
     let inTime = 0;
     const linksId = new Map();
     const linksValue = [];
 
-    let pt = this.db.links;
-    if (followValue !== null) {
-      pt = pt.where('follow').equals(followValue);
-    }
+    const computeBatch = (links, offsetId) => {
+      links.forEach((link) => {
+        const time = new Date();
+        const fromId = urlsNodeId.get(link.source) || 'unknown';
+        const toId = urlsNodeId.get(link.destination) || 'unknown';
+        const linkKey = md5(`${fromId}:${toId}`);
+
+        let linkId = linksId.get(linkKey);
+        if (!linkId) {
+          linkId = linksId.size + offsetId + 1; // make ids start at 1
+          linksId.set(linkKey, linkId);
+          linksValue.push({
+            id: linkId,
+            group,
+            from: fromId,
+            to: toId,
+            count: 1,
+          });
+        } else {
+          linksValue[linkId - offsetId - 1].count++;
+        }
+        inTime += new Date() - time;
+      });
+    };
 
     return this.db.groupsLinks.count()
-    .then(offsetId => pt.each((link) => {
-      const time = new Date();
-      const fromId = urlsNodeId.get(link.source) || 'unknown';
-      const toId = urlsNodeId.get(link.destination) || 'unknown';
-      const linkKey = md5(`${fromId}:${toId}`);
-
-      let linkId = linksId.get(linkKey);
-      if (!linkId) {
-        linkId = linksId.size + offsetId + 1; // make ids start at 1
-        linksId.set(linkKey, linkId);
-        linksValue.push({
-          id: linkId,
-          group,
-          from: fromId,
-          to: toId,
-          count: 1,
-        });
-      } else {
-        linksValue[linkId - offsetId - 1].count++;
+    .then((idOffset) => {
+      let promise = Promise.resolve();
+      for (let i = 0; i < this.info.links; i += 100000) {
+        promise = promise
+        .then(() => this.db.links.offset(i).limit(100000).toArray())
+        .then(links => computeBatch(links, idOffset));
       }
-      inTime += new Date() - time;
-    }))
+      return promise;
+    })
     .then(() => {
       console.log('Group links took', new Date() - startTime, 'ms to compute, (', inTime, 'ms in js)');
       startTime = new Date();
