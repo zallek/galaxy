@@ -328,8 +328,8 @@ export default class Analysis {
     const nodesValue = [];
 
     const computeBatch = (urls, idOffset) => {
+      const time = new Date();
       urls.forEach((url) => {
-        const time = new Date();
         // Register url in a groupNode
         const [nodeKey, key1, key2] = this._computeGroupNodeKey(url, groupBy1, groupBy2);
         let nodeId = nodesId.get(nodeKey);
@@ -354,8 +354,8 @@ export default class Analysis {
         //            value is an Integer
         // So 1 item is about 128 bytes (60 * 2 + 8)
         // 50k items is about 60MB (128 bytes * 50000)
-        inTime += new Date() - time;
       });
+      inTime += new Date() - time;
     };
 
     return this.db.groupsNodes.count()
@@ -392,8 +392,8 @@ export default class Analysis {
     const linksValue = [];
 
     const computeBatch = (links, offsetId) => {
+      const time = new Date();
       links.forEach((link) => {
-        const time = new Date();
         const fromId = urlsNodeId.get(link.source) || 'unknown';
         const toId = urlsNodeId.get(link.destination) || 'unknown';
         const linkKey = md5(`${fromId}:${toId}`);
@@ -412,8 +412,8 @@ export default class Analysis {
         } else {
           linksValue[linkId - offsetId - 1].count++;
         }
-        inTime += new Date() - time;
       });
+      inTime += new Date() - time;
     };
 
     return this.db.groupsLinks.count()
