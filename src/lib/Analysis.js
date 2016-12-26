@@ -111,7 +111,6 @@ export default class Analysis {
   }
 
   computeGroup(groupBy1, groupBy2, followType) {
-    console.log('compute', groupBy1, groupBy2);
     const followValue = followType === 'Follow' ? 1
                        : followType === 'NoFollow' ? 0
                        : null;
@@ -130,7 +129,6 @@ export default class Analysis {
   }
 
   getGroup(id) {
-    console.log('getGroup', id);
     return Promise.all([
       this.db.groupsNodes.where('group').equals(id).toArray(),
       this.db.groupsLinks.where('group').equals(id).toArray(),
@@ -322,7 +320,6 @@ export default class Analysis {
   }
 
   _computeGroupNodes(group, groupBy1, groupBy2) {
-    console.log('_computeGroupNodes');
     const urlsNodeId = new Map();
     const nodesId = new Map();    // node key to node id
     const nodesValue = [];
@@ -365,7 +362,6 @@ export default class Analysis {
   }
 
   _computeGroupLinks(group, followValue, urlsNodeId) {
-    console.log('_computeGroupLinks');
     const linksId = new Map();
     const linksValue = [];
 

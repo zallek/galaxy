@@ -43,7 +43,6 @@ class GroupBy extends React.Component {
     const { choices, groups, onChange } = this.props;
     const { tempValue } = this.state;
     const currentGroup = groups[tempValue.join(':')];
-    console.log('render groupby', currentGroup);
 
     return (
       <div className="Galaxy-groupby">
@@ -99,7 +98,6 @@ export default class Galaxy extends React.Component {
     .then((initGroups) => {
       const groups = {};
       initGroups.forEach((group) => {
-        console.log('componentDidMount', group.status);
         if (!group.status) {
           groups[`${group.groupBy1}:${group.groupBy2}`] = {
             id: group.id,
@@ -165,24 +163,20 @@ export default class Galaxy extends React.Component {
 
           const group = groups[groupKey];
           if (group) {
-            console.log('already computed');
             if (group.error) return;
             this.updateViz(group.id);
           } else {
-            console.log('not computed');
             this.setState({
               groups: { ...groups, [groupKey]: { status: GROUP_STATUS.COMPUTING } },
             });
             analysis.computeGroup(...newGroup)
             .then((id) => {
-              console.log('computed finished');
               this.setState({
                 groups: { ...groups, [groupKey]: { id, status: GROUP_STATUS.SUCCESS } },
               });
               this.updateViz(id);
             })
             .catch((error) => {
-              console.error('error', error);
               this.setState({
                 groups: { ...groups, [groupKey]: { status: GROUP_STATUS.FAILED, error } },
               });
@@ -195,7 +189,7 @@ export default class Galaxy extends React.Component {
 
   renderNetwork() {
     if (!this.state.nodes) return null;
-    console.log('render', this.state.groups, this.state.currentGroup, this.state.nodes.length, this.state.links.length);
+    console.log('render', this.state.groups, this.state.currentGroup);
     return (
       <VisNetwork
         nodes={this.state.nodes}

@@ -53,7 +53,6 @@ export default class VisNetwork extends React.Component {
 
   componentWillReceiveProps(nextProps) {
     if (nextProps.nodes !== this.props.nodes || nextProps.edges !== this.props.edges) {
-      console.log('update viz network');
       this.updateNetwork(nextProps);
     }
   }
