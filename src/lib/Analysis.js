@@ -350,10 +350,10 @@ export default class Analysis {
 
         // Can it OOM ? Should be good up to 50k crawled urls
         // urlsNodeId contains one item by crawled url.
-        // urlsNodeId key is a String of about 60 character
+        // urlsNodeId key is a String of 32 characters
         //            value is an Integer
-        // So 1 item is about 128 bytes (60 * 2 + 8)
-        // 50k items is about 60MB (128 bytes * 50000)
+        // So 1 item is about 72 bytes (32 * 2 + 8)
+        // 50k items is about 3.6MB (72 bytes * 50000) very optimistically
       });
       inTime += new Date() - time;
     };
@@ -419,9 +419,9 @@ export default class Analysis {
     return this.db.groupsLinks.count()
     .then((idOffset) => {
       let promise = Promise.resolve();
-      for (let i = 0; i < this.info.links; i += 100000) {
+      for (let i = 0; i < this.info.links; i += 150000) {
         promise = promise
-        .then(() => this.db.links.offset(i).limit(100000).toArray())
+        .then(() => this.db.links.offset(i).limit(150000).toArray())
         .then(links => computeBatch(links, idOffset));
       }
       return promise;
