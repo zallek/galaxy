@@ -59,7 +59,7 @@ export default class Analysis {
     this.db = new Dexie(`Analysis-${id}`);
     this.db.version(1).stores({
       urls: 'id', // url,segment1, segment2, segment3
-      links: '++id', // destination
+      links: 'id', // source, destination
       groups: '++id, [groupBy1+groupBy2]',
       groupsNodes: 'id, group', // key1, key2, count
       groupsLinks: 'id, group', // from, to, count',
@@ -171,8 +171,9 @@ export default class Analysis {
    * https://X/advanced_exports/fixed/Y
    */
   _fixExportUrl(exportUrl) {
-    return exportUrl.replace('advanced_exports', 'advanced_exports/nogzip')
-                    .replace('csv.gz', 'csv');
+    const splits = exportUrl.split('/');
+    const fileName = splits[splits.length - 1].slice(0, -3);
+    return `http://botify-galaxy.s3-eu-west-1.amazonaws.com/${fileName}`;
   }
 
   _checkIfExportAlreadyExist(type) {
@@ -283,9 +284,9 @@ export default class Analysis {
 
               // register link
               links.push({
+                id: nbLinks,
                 source,
                 destination,
-                follow: link[3] === 'Follow' ? 1 : 0,
               });
             });
 
@@ -360,13 +361,8 @@ export default class Analysis {
 
     return this.db.groupsNodes.count()
     .then((idOffset) => {
-      let promise = Promise.resolve();
-      for (let i = 0; i < this.info.knownUrls; i += 100000) {
-        promise = promise
-        .then(() => this.db.urls.offset(i).limit(100000).toArray())
-        .then(urls => computeBatch(urls, idOffset));
-      }
-      return promise;
+      return this.db.urls.toArray()
+      .then(urls => computeBatch(urls, idOffset));
     })
     .then(() => {
       const unknownUrls = this.info.knownUrls - this.info.crawledUrls;
@@ -419,9 +415,9 @@ export default class Analysis {
     return this.db.groupsLinks.count()
     .then((idOffset) => {
       let promise = Promise.resolve();
-      for (let i = 0; i < this.info.links; i += 150000) {
+      for (let i = 1; i <= this.info.links; i += 150000) {
         promise = promise
-        .then(() => this.db.links.offset(i).limit(150000).toArray())
+        .then(() => this.db.links.where('id').between(i, i + 150000).toArray())
         .then(links => computeBatch(links, idOffset));
       }
       return promise;
