@@ -497,8 +497,9 @@ export function insertDemos() {
     return analysesDB.analyses.get(demo.id)
     .then((exist) => {
       if (!exist) {
-        analysesDB.analyses.put(demo);
+        return analysesDB.analyses.put(demo);
       }
+      return null;
     });
   }));
 }
