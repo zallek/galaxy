@@ -27,6 +27,7 @@ const Form = ({ analyses, onSubmit }) => {
             className="Form-analysis"
             onClick={() => onSubmit({ id: analysis.id, refresh: !analysis.ready })}
           >
+            {analysis.img && <img role="presentation" alt="" className="Form-analysis-img" src={analysis.img} />}
             <div className="Form-analysis-name">
               <div>{analysis.owner}</div>
               <div>{analysis.projectSlug}</div>

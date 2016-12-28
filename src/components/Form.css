@@ -1,5 +1,5 @@
 .Form > form {
-  margin: 20% auto 0;
+  margin: 15% auto 0;
   text-align: center;
   max-width: 600px;
 }
@@ -36,6 +36,11 @@
   left: 0;
   opacity: 0.1;
   background: #fff;
+}
+
+.Form-analysis-img {
+  width: 100%;
+  height: 100%;
 }
 
 .Form-analysis-name {

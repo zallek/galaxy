@@ -40,11 +40,13 @@ export default class VisNetwork extends React.Component {
     edges: PropTypes.array,
     options: PropTypes.object,
     style: PropTypes.object,
+    events: PropTypes.objectOf(PropTypes.func),
   };
 
   static defaultProps = {
     edges: [],
     options: {},
+    events: {},
   };
 
   componentDidMount() {
@@ -62,13 +64,15 @@ export default class VisNetwork extends React.Component {
   }
 
   updateNetwork(props) {
-    const { nodes, edges, options } = props;
+    const { nodes, edges, options, events } = props;
 
     this.network = new Network(this.networkNode, {
       nodes,
       edges,
     }, options);
     this.network.setOptions(options);
+
+    Object.keys(events).forEach(eventName => this.network.on(eventName, events[eventName]));
   }
 
   render() {

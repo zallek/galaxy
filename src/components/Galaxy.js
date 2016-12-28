@@ -91,6 +91,8 @@ export default class Galaxy extends React.Component {
       nodes: null,
       links: null,
     };
+
+    this.screenshot = this.screenshot.bind(this);
   }
 
   componentDidMount() {
@@ -110,6 +112,14 @@ export default class Galaxy extends React.Component {
         this.updateViz(initGroups[0].id);
       }
     });
+  }
+
+  screenshot() {
+    if (this.props.analysis.info.img) return;
+    const p = document.querySelector('.VisNetwork canvas');
+    if (p) {
+      this.props.analysis.storeImg(p.toDataURL());
+    }
   }
 
   updateViz(groupId) {
@@ -210,6 +220,9 @@ export default class Galaxy extends React.Component {
               opacity: 0.15,
             },
           },
+        }}
+        events={{
+          stabilized: this.screenshot,
         }}
       />
     );

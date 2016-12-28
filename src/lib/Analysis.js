@@ -119,6 +119,11 @@ export default class Analysis {
     return this.db.groups.toArray();
   }
 
+  storeImg(img) {
+    this.info.img = img;
+    return analysesDB.analyses.update(this.id, { img });
+  }
+
   // PRIVATE
 
   _clearDB() {
