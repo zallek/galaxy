@@ -13,7 +13,6 @@ function openDb(id) {
 function getLinks(db, startIdx, endIdx) {
   return new Promise(function(resolve, reject) {
     var store = db.transaction(['links'], 'readonly').objectStore('links');
-    console.log('get links', startIdx, endIdx);
     var req = store.getAll(IDBKeyRange.bound(startIdx, endIdx, false, true));
     req.onsuccess = function (evt) {
       resolve(this.result);
