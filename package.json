@@ -33,7 +33,7 @@
   },
   "dependencies": {
     "blueimp-md5": "^2.6.0",
-    "botify-sdk": "git+ssh://git@github.com:botify-hq/botify-sdk-js.git#v1.6.0",
+    "botify-sdk": "1.0.0-beta5",
     "botify-sdk-middlewares": "^0.13.0",
     "dexie": "^1.5.1",
     "papaparse": "^4.1.2",

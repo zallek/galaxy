@@ -1,6 +1,6 @@
 import React from 'react';
 
-import Analysis, { getAnalyses, createAnalysis } from './lib/Analysis';
+import Analysis, { getAnalyses, createAnalysis, insertDemos } from './lib/Analysis';
 import Form from './components/Form';
 import Loading from './components/Loading';
 import Galaxy from './components/Galaxy';
@@ -22,7 +22,8 @@ class App extends React.Component {
   }
 
   componentDidMount() {
-    getAnalyses()
+    insertDemos()
+    .then(() => getAnalyses())
     .then((analyses) => { this.setState({ analyses }); })
     .catch((loadingError) => { this.setState({ loadingError }); });
   }

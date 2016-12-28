@@ -3,6 +3,7 @@ import md5 from 'blueimp-md5';
 import Papa from 'papaparse';
 
 import BotifySDK from './sdk';
+import demos from '../constants/demos';
 
 
 Promise = Dexie.Promise;
@@ -23,29 +24,6 @@ export const INVALID_REASONS = {
   NO_SEGMENTS: 1,
 };
 
-function extractAnalaysisMeta(url) {
-  const splits = url.split('/');
-  const tempEnv = splits[2].split('.')[1];
-
-  return {
-    env: tempEnv === 'botify' ? 'production' : tempEnv,
-    username: splits[3],
-    projectSlug: splits[4],
-    analysisSlug: splits[5],
-  };
-}
-
-function getRandomInt(min, max) {
-  min = Math.ceil(min);
-  max = Math.floor(max);
-  return Math.floor(Math.random() * (max - min)) + min;
-}
-
-
-//  <analysisId>_groups_<groupBy1>_<groupBy2>
-//    id, group1, group2, nbUrls, nbCompliant, nbNotCompliant, avgDepth, avgResponseTime,
-//    nb2xx, nb3xx, nb4xx, nb5xx, nbInlinks, nbOutlinks, avgPageRank,
-//    avgVisits, sumVisits, avgCrawls, sumCrawls
 
 const analysesDB = new Dexie('Analyses');
 analysesDB.version(1).stores({
@@ -154,26 +132,15 @@ export default class Analysis {
   }
 
   _prepareExport(type) {
+    if (this.info.exports && this.info.exports[type]) return this.info.exports[type];
+
     return this._checkIfExportAlreadyExist(type)
     .then((exportUrl) => {
       if (!exportUrl) {
-        // return this._createExport(type); // workaround
-        throw new Error('No export available');
+        return this._createExport(type);
       }
       return exportUrl;
-    })
-    .then(this._fixExportUrl); // workaround
-  }
-
-  /**
-   * https://X/advanced_exports/Y
-   * to
-   * https://X/advanced_exports/fixed/Y
-   */
-  _fixExportUrl(exportUrl) {
-    const splits = exportUrl.split('/');
-    const fileName = splits[splits.length - 1].slice(0, -3);
-    return `http://botify-galaxy.s3-eu-west-1.amazonaws.com/${fileName}`;
+    });
   }
 
   _checkIfExportAlreadyExist(type) {
@@ -224,7 +191,7 @@ export default class Analysis {
               const url = page[24 + nbHTMLExtracts];
               if (!url) return;
 
-              const nbInlinks = Number.parseInt(page[16 + nbHTMLExtracts], 10);
+              const nbOutlinks = Number.parseInt(page[17 + nbHTMLExtracts], 10);
               urls.push({
                 id: md5(url),
                 compliant: page[0 + nbHTMLExtracts] === 'True',
@@ -232,8 +199,8 @@ export default class Analysis {
                 responseTime: Number.parseInt(page[7 + nbHTMLExtracts], 10),
                 pagerank: Number.parseFloat(page[13 + nbHTMLExtracts], 10),
                 pagerankPosition: Number.parseInt(page[14 + nbHTMLExtracts], 10),
-                nbInlinks,
-                nbOutlinks: Number.parseInt(page[17 + nbHTMLExtracts], 10),
+                nbInlinks: Number.parseInt(page[16 + nbHTMLExtracts], 10),
+                nbOutlinks,
                 segment1: page[20 + nbHTMLExtracts],
                 segment2: page[21 + nbHTMLExtracts],
                 extract1: nbHTMLExtracts > 0 ? page[0] : null,
@@ -241,7 +208,7 @@ export default class Analysis {
                 extract3: nbHTMLExtracts > 2 ? page[2] : null,
                 extract4: nbHTMLExtracts > 3 ? page[3] : null,
               });
-              nbLinks += nbInlinks;
+              nbLinks += nbOutlinks;
               nbUrls++;
             });
 
@@ -429,7 +396,6 @@ export default class Analysis {
           }
         })
         .catch((error) => {
-          console.log('error', error);
           err = true;
           reject(error);
         });
@@ -471,6 +437,18 @@ export function getAnalyses() {
   return analysesDB.analyses.toArray();
 }
 
+function extractAnalaysisMeta(url) {
+  const splits = url.split('/');
+  const tempEnv = splits[2].split('.')[1];
+
+  return {
+    env: tempEnv === 'botify' ? 'production' : tempEnv,
+    username: splits[3],
+    projectSlug: splits[4],
+    analysisSlug: splits[5],
+  };
+}
+
 export function createAnalysis(url) {
   const analysisMeta = extractAnalaysisMeta(url);
 
@@ -508,4 +486,15 @@ export function createAnalysis(url) {
     })
     .then(() => new Analysis(analysis.id));
   });
+}
+
+export function insertDemos() {
+  return Promise.all(demos.map((demo) => {
+    return analysesDB.analyses.get(demo.id)
+    .then((exist) => {
+      if (!exist) {
+        analysesDB.analyses.put(demo);
+      }
+    });
+  }));
 }

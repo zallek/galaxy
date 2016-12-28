@@ -14,10 +14,10 @@ const Form = ({ analyses, onSubmit }) => {
       >
         <div className="form-group">
           <label htmlFor="analysisUrl">Enter your Botify Analysis URL</label>
-          <input type="url" required id="analysisUrl" name="analysisUrl" className="form-control" />
+          <input type="url" required id="analysisUrl" name="analysisUrl" className="form-control" disabled />
         </div>
         <div className="button">
-          <button type="submit" className="btn btn-primary">Start</button>
+          <button type="submit" className="btn btn-primary" disabled>Start</button>
         </div>
       </form>
       <div className="Form-analyses">
