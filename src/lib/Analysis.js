@@ -61,8 +61,8 @@ export default class Analysis {
       urls: 'id', // url,segment1, segment2, segment3
       links: 'id', // source, destination
       groups: '++id, [groupBy1+groupBy2]',
-      groupsNodes: 'id, group', // key1, key2, count
-      groupsLinks: 'id, group', // from, to, count',
+      groupsNodes: '++, group', // key1, key2, count
+      groupsLinks: '++, group', // from, to, count',
     });
   }
 
@@ -324,7 +324,7 @@ export default class Analysis {
   _computeGroupNodes(group, groupBy1, groupBy2) {
     let startTime = new Date();
     let inTime = 0;
-    const urlsNodeId = new Map();
+    const urlsNodeId = {};
     const nodesId = new Map();    // node key to node id
     const nodesValue = [];
 
@@ -347,7 +347,7 @@ export default class Analysis {
         }
 
         // Register url to node
-        urlsNodeId.set(url.id, nodeId);
+        urlsNodeId[url.id] = nodeId;
 
         // Can it OOM ? Should be good up to 50k crawled urls
         // urlsNodeId contains one item by crawled url.
@@ -383,49 +383,82 @@ export default class Analysis {
 
   _computeGroupLinks(group, urlsNodeId) {
     let startTime = new Date();
-    let inTime = 0;
-    const linksId = new Map();
-    const linksValue = [];
 
-    const computeBatch = (links, offsetId) => {
-      const time = new Date();
-      links.forEach((link) => {
-        const fromId = urlsNodeId.get(link.source) || 'unknown';
-        const toId = urlsNodeId.get(link.destination) || 'unknown';
-        const linkKey = md5(`${fromId}:${toId}`);
+    return new Promise((resolve, reject) => {
+      const res = [];
 
-        let linkId = linksId.get(linkKey);
-        if (!linkId) {
-          linkId = linksId.size + offsetId + 1; // make ids start at 1
-          linksId.set(linkKey, linkId);
-          linksValue.push({
-            id: linkId,
-            group,
-            from: fromId,
-            to: toId,
-            count: 1,
+      // Prepare workers starters
+      const jobs = [];
+      for (let i = 1; i <= this.info.links; i += 150000) {
+        jobs.push({ startIdx: i, endIdx: i + 150000 });
+      }
+
+      let nbStarted = 0;
+      let nbDone = 0;
+      let err = false;
+
+      const startWorker = (jobIdx) => {
+        console.log('start Worker', jobIdx);
+        nbStarted++;
+        new Promise((_resolve, _reject) => {
+          const w = new Worker('workers/groupChunkLinks.js');
+          w.postMessage({
+            analysisId: this.id,
+            startIdx: jobs[jobIdx].startIdx,
+            endIdx: jobs[jobIdx].endIdx,
+            urlsNodeId,
           });
+          w.onmessage = (e) => {
+            w.terminate();
+            if (e.data.error) {
+              _reject(e.data.error);
+            } else {
+              _resolve(e.data.result);
+            }
+          };
+        })
+        .then((groupsLinks) => {
+          nbDone++;
+          if (err) return;
+          res.push(...groupsLinks);
+          if (nbStarted < jobs.length) {
+            startWorker(nbStarted);
+          }
+          if (nbDone >= jobs.length) {
+            resolve(res);
+          }
+        })
+        .catch((error) => {
+          console.log('error', error);
+          err = true;
+          reject(error);
+        });
+      };
+
+      for (let i = 0; i < 4 && i < jobs.length; i++) { // Start first workers
+        startWorker(i);
+      }
+    })
+    .then((res) => {
+      const merged = {};
+      res.forEach((item) => {
+        const id = `${item.from}:${item.to}`;
+        if (!merged[id]) {
+          merged[id] = {
+            ...item,
+            id,
+            group,
+          };
         } else {
-          linksValue[linkId - offsetId - 1].count++;
+          merged[id].count += item.count;
         }
       });
-      inTime += new Date() - time;
-    };
-
-    return this.db.groupsLinks.count()
-    .then((idOffset) => {
-      let promise = Promise.resolve();
-      for (let i = 1; i <= this.info.links; i += 150000) {
-        promise = promise
-        .then(() => this.db.links.where('id').between(i, i + 150000).toArray())
-        .then(links => computeBatch(links, idOffset));
-      }
-      return promise;
+      return Object.values(merged);
     })
-    .then(() => {
-      console.log('Group links took', new Date() - startTime, 'ms to compute, (', inTime, 'ms in js)');
+    .then((res) => {
+      console.log('Group links tooks', new Date() - startTime, 'ms to compute');
       startTime = new Date();
-      return this.db.groupsLinks.bulkAdd(linksValue);
+      return this.db.groupsLinks.bulkAdd(res);
     })
     .then(() => {
       console.log('Group links took', new Date() - startTime, 'ms to store');
