@@ -8,15 +8,16 @@ const imageConfig = {
 module.exports = {
   // or devtool: 'eval' to debug issues with compiled output:
   devtool: 'cheap-module-eval-source-map',
-  entry: [
-    // listen to code updates emitted by hot middleware:
-    'webpack-hot-middleware/client',
-    // your code:
-    './src/index',
-  ],
+  entry: {
+    app: [
+      'webpack-hot-middleware/client',
+      './src/index',
+    ],
+    'worker-groupLinks': './src/workers/groupChunkLinks',
+  },
   output: {
     path: path.join(__dirname, 'dist'),
-    filename: 'bundle.js',
+    filename: '[name].js',
     publicPath: '/dist/',
   },
   plugins: [

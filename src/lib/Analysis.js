@@ -370,10 +370,9 @@ export default class Analysis {
       let err = false;
 
       const startWorker = (jobIdx) => {
-        console.log('start Worker', jobIdx);
         nbStarted++;
         new Promise((_resolve, _reject) => {
-          const w = new Worker('workers/groupChunkLinks.js');
+          const w = new Worker('dist/worker-groupLinks.js');
           w.postMessage({
             analysisId: this.id,
             startIdx: jobs[jobIdx].startIdx,
