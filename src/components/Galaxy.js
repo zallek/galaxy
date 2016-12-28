@@ -22,25 +22,29 @@ class GroupBy extends React.Component {
     };
 
     this.updateTempValue = this.updateTempValue.bind(this);
+    this.onChange = this.onChange.bind(this);
   }
 
   componentWillReceiveProps(props) {
     this.setState({ tempValue: props.value.map(v => v || 'null') });
   }
 
+  onChange(recompute) {
+    this.props.onChange(this.state.tempValue.map(v => v === 'null' ? null : v), recompute);
+  }
+
   updateTempValue(v, side) {
     const { tempValue } = this.state;
-    const newPartValue = v === 'null' ? null : v;
 
     if (side === 'left') {
-      this.setState({ tempValue: [newPartValue, tempValue[1]] });
+      this.setState({ tempValue: [v, tempValue[1]] });
     } else {
-      this.setState({ tempValue: [tempValue[0], newPartValue] });
+      this.setState({ tempValue: [tempValue[0], v] });
     }
   }
 
   render() {
-    const { choices, groups, onChange } = this.props;
+    const { choices, groups } = this.props;
     const { tempValue } = this.state;
     const currentGroup = groups[tempValue.join(':')];
 
@@ -59,11 +63,11 @@ class GroupBy extends React.Component {
           )}
         </select>
         {currentGroup && currentGroup.status === GROUP_STATUS.SUCCESS &&
-          <button className="form-control btn-success" onClick={() => onChange(tempValue)}>Change</button>
+          <button className="form-control btn-success" onClick={() => this.onChange()}>Change</button>
         }
         {(currentGroup && currentGroup.status === GROUP_STATUS.COMPUTING) ?
           <span className="label label-warning">Computing</span> :
-          <button className="form-control btn-primary" onClick={() => onChange(tempValue, true)}>Recompute</button>
+          <button className="form-control btn-primary" onClick={() => this.onChange(true)}>Recompute</button>
         }
         {currentGroup && currentGroup.status === GROUP_STATUS.FAILED &&
           <span className="label label-danger">Error {currentGroup.error && currentGroup.error.message}</span>
