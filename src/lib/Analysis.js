@@ -6,8 +6,11 @@ import BotifySDK from './sdk';
 import demos from '../constants/demos';
 
 
+const STREAMING_CHUNK_SIZE = 1024 * 1024 * 20; // 20 MB
+const NO_CONCURRENT_WORKER = 3;
+
 Promise = Dexie.Promise;
-Papa.RemoteChunkSize = 1024 * 1024 * 20; // 20 MB
+Papa.RemoteChunkSize = STREAMING_CHUNK_SIZE;
 
 const EXPORTS = {
   ALL_LINKS: 'ALL_LINKS',
@@ -406,7 +409,7 @@ export default class Analysis {
         });
       };
 
-      for (let i = 0; i < 4 && i < jobs.length; i++) { // Start first workers
+      for (let i = 0; i < NO_CONCURRENT_WORKER && i < jobs.length; i++) { // Start first workers
         startWorker(i);
       }
     })
