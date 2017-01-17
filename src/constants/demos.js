@@ -1,9 +1,25 @@
 export default [
   {
+    id: 73390,
+    owner: 'Botify',
+    projectSlug: 'Galaxy',
+    analysisSlug: 'Demo-300k',
+    env: 'production',
+    url: '',
+    crawledUrls: 5236,
+    knownUrls: 5236,
+    links: 219093,
+    segmentsName: ['PageType'],
+    exports: {
+      ALL_URL_DETAILS: 'https://d3ykzhoetxh1w.cloudfront.net/botify-galaxy-demo-300k-urls.csv',
+      ALL_LINKS: 'https://d3ykzhoetxh1w.cloudfront.net/botify-galaxy-demo-300k-links.csv',
+    },
+  },
+  {
     id: 88932,
     owner: 'Botify',
     projectSlug: 'Galaxy',
-    analysisSlug: 'Demo1',
+    analysisSlug: 'Demo-1M',
     env: 'production',
     url: '',
     crawledUrls: 26560,
@@ -12,15 +28,15 @@ export default [
     extractsName: ['Breadcrumb', 'Nb Shares', 'Nb Products'],
     segmentsName: ['PageType'],
     exports: {
-      ALL_URL_DETAILS: 'https://d3ykzhoetxh1w.cloudfront.net/botify-galaxy-demo1-urls.csv',
-      ALL_LINKS: 'https://d3ykzhoetxh1w.cloudfront.net/botify-galaxy-demo1-links.csv',
+      ALL_URL_DETAILS: 'https://d3ykzhoetxh1w.cloudfront.net/botify-galaxy-demo-1M-urls.csv',
+      ALL_LINKS: 'https://d3ykzhoetxh1w.cloudfront.net/botify-galaxy-demo-1M-links.csv',
     },
   },
   {
     id: 91558,
     owner: 'Botify',
     projectSlug: 'Galaxy',
-    analysisSlug: 'Demo2',
+    analysisSlug: 'Demo-12M',
     env: 'production',
     crawledUrls: 135969,
     knownUrls: 135969,
@@ -28,8 +44,8 @@ export default [
     extractsName: ['Breadcrumb'],
     segmentsName: ['PageType'],
     exports: {
-      ALL_URL_DETAILS: 'https://d3ykzhoetxh1w.cloudfront.net/botify-galaxy-demo2-urls.csv',
-      ALL_LINKS: 'https://d3ykzhoetxh1w.cloudfront.net/botify-galaxy-demo2-links.csv',
+      ALL_URL_DETAILS: 'https://d3ykzhoetxh1w.cloudfront.net/botify-galaxy-demo-12M-urls.csv',
+      ALL_LINKS: 'https://d3ykzhoetxh1w.cloudfront.net/botify-galaxy-demo-12M-links.csv',
     },
   }
 ];
