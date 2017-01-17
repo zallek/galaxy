@@ -7,6 +7,7 @@ import demos from '../constants/demos';
 
 
 Promise = Dexie.Promise;
+Papa.RemoteChunkSize = 1024 * 1024 * 20; // 20 MB
 
 const EXPORTS = {
   ALL_LINKS: 'ALL_LINKS',
