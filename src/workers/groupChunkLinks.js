@@ -1,3 +1,4 @@
+
 function openDb(id) {
   return new Promise(function(resolve, reject) {
     var req = indexedDB.open('Analysis-' + id, 10);
@@ -28,8 +29,8 @@ function computeBatch(links, urlsNodeId) {
   const linksValue = [];
 
   links.forEach((link) => {
-    const fromId = urlsNodeId[link.source] || 'unknown';
-    const toId = urlsNodeId[link.destination] || 'unknown';
+    const fromId = urlsNodeId.get(link.source) || 'unknown';
+    const toId = urlsNodeId.get(link.destination) || 'unknown';
     const linkKey = `${fromId}:${toId}`;
 
     let linkId = linksId.get(linkKey);
@@ -54,7 +55,7 @@ onmessage = function(e) {
   try {
     openDb(e.data.analysisId)
     .then(db => getLinks(db, e.data.startIdx, e.data.endIdx))
-    .then(links => computeBatch(links, e.data.urlsNodeId))
+    .then(links => computeBatch(links, new Map(e.data.urlsNodeId)))
     .then(groupLinks => postMessage({
       error: null,
       result: groupLinks,
