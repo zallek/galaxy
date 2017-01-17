@@ -3,6 +3,7 @@ import md5 from 'blueimp-md5';
 import Papa from 'papaparse';
 
 import BotifySDK from './sdk';
+import { sendStats } from './monitoring';
 import demos from '../constants/demos';
 
 
@@ -94,11 +95,25 @@ export default class Analysis {
 
   computeGroup(groupBy1, groupBy2) {
     let groupId = null;
+    let time = 0;
+    let perfUrls = 0;
+    let perfLinks = 0;
 
     return this.db.groups.add({ groupBy1, groupBy2, status: GROUP_STATUS.COMPUTING })
     .then((newGroupId) => { groupId = newGroupId; })
-    .then(() => this._computeGroupNodes(groupId, groupBy1, groupBy2))
-    .then(urlsNodeId => this._computeGroupLinks(groupId, urlsNodeId))
+    .then(() => {
+      time = new Date();
+      return this._computeGroupNodes(groupId, groupBy1, groupBy2);
+    })
+    .then(urlsNodeId => {
+      perfUrls = new Date() - time;
+      time = new Date();
+      return this._computeGroupLinks(groupId, urlsNodeId);
+    })
+    .then(() => {
+      perfLinks = new Date() - time;
+      sendStats(this.info.analysisSlug, perfUrls, perfLinks);
+    })
     .catch((e) => {
       this.db.groups.update(groupId, { status: GROUP_STATUS.FAILED });
       throw e;
