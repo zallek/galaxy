@@ -4,6 +4,10 @@
   max-width: 600px;
 }
 
+.Form input, .Form button {
+  display: none; /* Temp */
+}
+
 .Form input {
   text-align: center;
 }

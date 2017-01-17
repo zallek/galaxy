@@ -13,7 +13,7 @@ const Form = ({ analyses, onSubmit }) => {
         }}
       >
         <div className="form-group">
-          <label htmlFor="analysisUrl">Enter your Botify Analysis URL</label>
+          <label htmlFor="analysisUrl">Welcome. Select a demo</label>
           <input type="url" required id="analysisUrl" name="analysisUrl" className="form-control" disabled />
         </div>
         <div className="button">
@@ -21,6 +21,7 @@ const Form = ({ analyses, onSubmit }) => {
         </div>
       </form>
       <div className="Form-analyses">
+        <label></label>
         {analyses.map(analysis =>
           <div
             key={analysis.id}
