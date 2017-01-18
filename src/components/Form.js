@@ -21,7 +21,6 @@ const Form = ({ analyses, onSubmit }) => {
         </div>
       </form>
       <div className="Form-analyses">
-        <label></label>
         {analyses.map(analysis =>
           <div
             key={analysis.id}

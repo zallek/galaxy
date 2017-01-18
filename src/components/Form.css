@@ -1,7 +1,10 @@
-.Form > form {
+.Form {
   margin: 15% auto 0;
+  max-width: 660px;
+}
+
+.Form form {
   text-align: center;
-  max-width: 600px;
 }
 
 .Form input, .Form button {
@@ -13,7 +16,6 @@
 }
 
 .Form-analyses {
-  width: 660px;
   margin: 30px auto 0;
 }
 
@@ -43,6 +45,7 @@
 }
 
 .Form-analysis-img {
+  position: absolute;
   width: 100%;
   height: 100%;
 }
