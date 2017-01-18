@@ -512,13 +512,9 @@ export function createAnalysis(url) {
 }
 
 export function insertDemos() {
-  return Promise.all(demos.map((demo) => {
-    return analysesDB.analyses.get(demo.id)
-    .then((exist) => {
-      if (!exist) {
-        return analysesDB.analyses.put(demo);
-      }
-      return null;
-    });
-  }));
+  return analysesDB.analyses.count()
+  .then((count) => {
+    if (!count) return analysesDB.analyses.bulkPut(demos);
+    return null;
+  });
 }
