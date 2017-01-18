@@ -1,5 +1,5 @@
 import Dexie from 'dexie';
-import md5 from 'blueimp-md5';
+import hash from 'string-hash';
 import Papa from 'papaparse';
 
 import BotifySDK from './sdk';
@@ -217,7 +217,7 @@ export default class Analysis {
 
               const nbOutlinks = Number.parseInt(page[17 + nbHTMLExtracts], 10);
               urls.push({
-                id: md5(url),
+                id: hash(url),
                 compliant: page[0 + nbHTMLExtracts] === 'True',
                 httpCode: Number.parseInt(page[12 + nbHTMLExtracts], 10),
                 responseTime: Number.parseInt(page[7 + nbHTMLExtracts], 10),
@@ -270,8 +270,8 @@ export default class Analysis {
               if (link[2] !== 'Internal') return;
               nbLinks++;
 
-              const source = md5(link[0]);
-              const destination = md5(link[1]);
+              const source = hash(link[0]);
+              const destination = hash(link[1]);
 
               // register link
               links.push({
@@ -309,7 +309,7 @@ export default class Analysis {
   _computeGroupNodeKey(url, groupBy1, groupBy2) {
     const key1 = url[groupBy1] || '';
     const key2 = (groupBy2 && url[groupBy2]) || '';
-    return [md5(`${key1}:${key2}`), key1, key2];
+    return [hash(`${key1}:${key2}`), key1, key2];
   }
 
   _computeGroupNodes(group, groupBy1, groupBy2) {

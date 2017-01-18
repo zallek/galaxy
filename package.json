@@ -32,13 +32,13 @@
     "webpack-hot-middleware": "^2.9.1"
   },
   "dependencies": {
-    "blueimp-md5": "^2.6.0",
     "botify-sdk": "1.0.0-beta5",
     "botify-sdk-middlewares": "^0.13.0",
     "dexie": "^1.5.1",
     "papaparse": "^4.1.2",
     "react": "^15.0.0",
     "react-dom": "^15.0.0",
+    "string-hash": "^1.1.1",
     "vis": "^4.17.0",
     "whatwg-fetch": "^2.0.1"
   }
