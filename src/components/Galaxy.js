@@ -151,10 +151,13 @@ export default class Galaxy extends React.Component {
       label: `Segment: ${item}`,
       value: `segment${i + 1}`,
     })))
-    .concat(analysis.info.extractsName.map((item, i) => ({
-      label: `Extract: ${item}`,
-      value: `extract${i + 1}`,
-    })))
+    .concat(analysis.info.extractsName ?
+      analysis.info.extractsName.map((item, i) => ({
+        label: `Extract: ${item}`,
+        value: `extract${i + 1}`,
+      }))
+      : [],
+    )
     .concat([
       { label: 'Compliant', value: 'compliant' },
       { label: 'HTTP Code', value: 'httpCode' },

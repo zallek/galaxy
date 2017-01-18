@@ -303,7 +303,7 @@ export default class Analysis {
   }
 
   _prepareFirstGroup() {
-    return this.computeGroup('segment1');
+    return this.computeGroup('segment1', null);
   }
 
   _computeGroupNodeKey(url, groupBy1, groupBy2) {
