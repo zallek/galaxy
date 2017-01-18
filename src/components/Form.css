@@ -27,6 +27,7 @@
   position: relative;
   display: inline-block;
   margin: 10px;
+  overflow: hidden;
 }
 
 .Form-analysis:hover {
@@ -46,7 +47,7 @@
 
 .Form-analysis-img {
   position: absolute;
-  width: 100%;
+  left: -50%;
   height: 100%;
 }
 
