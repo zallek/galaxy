@@ -11,8 +11,8 @@ export default [
     links: 219093,
     segmentsName: ['PageType'],
     exports: {
-      ALL_URL_DETAILS: 'https://d3ykzhoetxh1w.cloudfront.net/botify-galaxy-demo-300k-urls.csv',
-      ALL_LINKS: 'https://d3ykzhoetxh1w.cloudfront.net/botify-galaxy-demo-300k-links.csv',
+      ALL_URL_DETAILS: 'https://d121xa69ioyktv.cloudfront.net/advanced_exports/uncompressed/botify-galaxy-demo-300k-urls.csv',
+      ALL_LINKS: 'https://d121xa69ioyktv.cloudfront.net/advanced_exports/uncompressed/botify-galaxy-demo-300k-links.csv',
     },
   },
   {
@@ -28,8 +28,8 @@ export default [
     extractsName: ['Breadcrumb', 'Nb Shares', 'Nb Products'],
     segmentsName: ['PageType'],
     exports: {
-      ALL_URL_DETAILS: 'https://d3ykzhoetxh1w.cloudfront.net/botify-galaxy-demo-1M-urls.csv',
-      ALL_LINKS: 'https://d3ykzhoetxh1w.cloudfront.net/botify-galaxy-demo-1M-links.csv',
+      ALL_URL_DETAILS: 'https://d121xa69ioyktv.cloudfront.net/advanced_exports/uncompressed/botify-galaxy-demo-1M-urls.csv',
+      ALL_LINKS: 'https://d121xa69ioyktv.cloudfront.net/advanced_exports/uncompressed/botify-galaxy-demo-1M-links.csv',
     },
   },
   {
@@ -44,8 +44,8 @@ export default [
     extractsName: ['Breadcrumb'],
     segmentsName: ['PageType'],
     exports: {
-      ALL_URL_DETAILS: 'https://d3ykzhoetxh1w.cloudfront.net/botify-galaxy-demo-12M-urls.csv',
-      ALL_LINKS: 'https://d3ykzhoetxh1w.cloudfront.net/botify-galaxy-demo-12M-links.csv',
+      ALL_URL_DETAILS: 'https://d121xa69ioyktv.cloudfront.net/advanced_exports/uncompressed/botify-galaxy-demo-12M-urls.csv',
+      ALL_LINKS: 'https://d121xa69ioyktv.cloudfront.net/advanced_exports/uncompressed/botify-galaxy-demo-12M-links.csv',
     },
   }
 ];
